@@ -1,8 +1,6 @@
 package com.example.wlauncher.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -20,7 +18,6 @@ import java.util.*
 
 @Composable
 fun WatchFaceLayer(
-    onTap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var currentTime by remember { mutableStateOf("") }
@@ -28,7 +25,7 @@ fun WatchFaceLayer(
 
     LaunchedEffect(Unit) {
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-        val dateFmt = SimpleDateFormat("M月d日 EEEE", Locale.CHINESE)
+        val dateFmt = SimpleDateFormat("M\u6708d\u65e5 EEEE", Locale.CHINESE)
         while (true) {
             val now = Date()
             currentTime = timeFmt.format(now)
@@ -45,11 +42,6 @@ fun WatchFaceLayer(
                     colors = listOf(Color(0xFF1a1a2e), Color.Black),
                     radius = 600f
                 )
-            )
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onTap
             ),
         contentAlignment = Alignment.Center
     ) {

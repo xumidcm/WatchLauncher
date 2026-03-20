@@ -4,13 +4,16 @@ import android.app.Application
 import android.os.Build
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.data.repository.AppRepository
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -24,27 +27,74 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _layoutMode = MutableStateFlow(LayoutMode.Honeycomb)
     val layoutMode: StateFlow<LayoutMode> = _layoutMode.asStateFlow()
 
-    // 模糊动画开关：API 31+ 默认开启，低于 31 默认关闭
     private val _blurEnabled = MutableStateFlow(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     val blurEnabled: StateFlow<Boolean> = _blurEnabled.asStateFlow()
 
-    // 打开应用时记录图标在屏幕中的位置，用于 transformOrigin 动画
     private val _appOpenOrigin = MutableStateFlow(Offset(0.5f, 0.5f))
     val appOpenOrigin: StateFlow<Offset> = _appOpenOrigin.asStateFlow()
 
-    // 当前打开的应用名
     private val _currentApp = MutableStateFlow<AppInfo?>(null)
     val currentApp: StateFlow<AppInfo?> = _currentApp.asStateFlow()
+
+    // 是否正在启动外部应用（用于区分 onResume 来源）
+    private var launchingExternalApp = false
 
     fun setState(state: ScreenState) {
         _screenState.value = state
     }
 
+    /**
+     * 打开应用：先播放退出动画，等动画完成后再启动外部 Activity。
+     */
     fun openApp(appInfo: AppInfo, origin: Offset = Offset(0.5f, 0.5f)) {
         _currentApp.value = appInfo
         _appOpenOrigin.value = origin
         _screenState.value = ScreenState.App
-        appRepository.launchApp(appInfo)
+
+        viewModelScope.launch {
+            // 等待退出动画播放完 (~500ms)
+            delay(500)
+            launchingExternalApp = true
+            appRepository.launchApp(appInfo)
+        }
+    }
+
+    /**
+     * 从外部应用返回桌面时调用。
+     * 播放返回动画：从 App 状态回到 Apps 状态。
+     */
+    fun onReturnToLauncher() {
+        if (launchingExternalApp) {
+            launchingExternalApp = false
+            // 回到应用列表，触发返回动画
+            _screenState.value = ScreenState.Apps
+        }
+    }
+
+    /**
+     * 主页键：表盘 ↔ 应用列表 切换，其他状态一律回表盘。
+     */
+    fun handleHomePress() {
+        when (_screenState.value) {
+            ScreenState.Face -> _screenState.value = ScreenState.Apps
+            ScreenState.Apps -> _screenState.value = ScreenState.Face
+            else -> _screenState.value = ScreenState.Face
+        }
+    }
+
+    /**
+     * 返回键：按层级回退。表盘不响应。
+     */
+    fun handleBackPress() {
+        when (_screenState.value) {
+            ScreenState.Face -> { /* 表盘不响应返回键 */ }
+            ScreenState.Apps -> _screenState.value = ScreenState.Face
+            ScreenState.App -> _screenState.value = ScreenState.Apps
+            ScreenState.Settings -> _screenState.value = ScreenState.Apps
+            ScreenState.Stack -> _screenState.value = ScreenState.Face
+            ScreenState.Notifications -> _screenState.value = ScreenState.Face
+            ScreenState.ControlCenter -> _screenState.value = ScreenState.Face
+        }
     }
 
     fun closeApp() {
@@ -60,7 +110,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun setBlurEnabled(enabled: Boolean) {
-        // 只有 API 31+ 才能真正启用模糊
         _blurEnabled.value = enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     }
 

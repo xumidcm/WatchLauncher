@@ -1,9 +1,11 @@
 package com.example.wlauncher
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.addCallback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,6 +30,9 @@ import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel
 
 class LauncherActivity : ComponentActivity() {
+
+    private lateinit var vm: LauncherViewModel
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -36,11 +41,38 @@ class LauncherActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
         )
 
+        // 拦截系统返回键
+        onBackPressedDispatcher.addCallback(this) {
+            vm.handleBackPress()
+        }
+
         setContent {
             WatchLauncherTheme {
-                val vm: LauncherViewModel = viewModel()
-                LauncherScreen(vm)
+                val viewModel: LauncherViewModel = viewModel()
+                vm = viewModel
+                LauncherScreen(viewModel)
             }
+        }
+    }
+
+    /**
+     * 按主页键时触发 (singleTask launcher)。
+     * 表盘 → 应用列表，应用列表 → 表盘，其他状态 → 表盘。
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (::vm.isInitialized) {
+            vm.handleHomePress()
+        }
+    }
+
+    /**
+     * 从其他应用返回时，播放返回动画。
+     */
+    override fun onResume() {
+        super.onResume()
+        if (::vm.isInitialized) {
+            vm.onReturnToLauncher()
         }
     }
 }
@@ -75,11 +107,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         blurEnabled = blurEnabled
                     )
             ) {
-                WatchFaceLayer(
-                    onTap = {
-                        if (screenState == ScreenState.Face) vm.setState(ScreenState.Apps)
-                    }
-                )
+                WatchFaceLayer()
             }
 
             // Layer 2: App Drawer (Honeycomb or List)

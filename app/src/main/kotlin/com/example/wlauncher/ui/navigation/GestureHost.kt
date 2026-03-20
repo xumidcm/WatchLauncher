@@ -13,7 +13,7 @@ import kotlin.math.abs
  * 表盘:
  *   - 上滑 → Smart Stack
  *   - 下滑 → 通知中心
- *   - 点击 → App列表
+ *   - 主页键进入应用列表 (不在这里处理)
  *
  * Smart Stack:
  *   - 继续上滑 → App列表
@@ -26,7 +26,7 @@ import kotlin.math.abs
  *   - 任意滑动 → 回表盘
  *
  * App列表:
- *   - (不拦截，由 HoneycombScreen/ListDrawer 自行处理拖拽)
+ *   - (不拦截，留给子层处理)
  */
 @Composable
 fun GestureHost(
@@ -90,19 +90,15 @@ fun GestureHost(
                                 }
 
                                 ScreenState.Apps -> {
-                                    // 不拦截，留给子层处理
+                                    // 不拦截，留给 HoneycombScreen/ListDrawer 处理
                                 }
 
                                 ScreenState.App -> {
-                                    // 从左边缘右滑返回
-                                    if (!isVertical && totalDx > 80) {
-                                        onStateChange(ScreenState.Apps)
-                                        change.consume()
-                                    }
+                                    // App 状态不拦截手势
                                 }
 
                                 ScreenState.Settings -> {
-                                    // 设置页不拦截手势，由返回按钮处理
+                                    // 设置页不拦截手势
                                 }
                             }
                         }

@@ -9,7 +9,9 @@
       "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/ui/drawer/HoneycombScreen.kt\":*)",
       "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/LauncherActivity.kt\":*)",
       "Bash(gh repo:*)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)"
     ]
   }
 }
