@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/data/model/AppInfo.kt\":*)",
+      "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/viewmodel/LauncherViewModel.kt\":*)",
+      "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/util/HexGridMath.kt\":*)",
+      "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/ui/drawer/AppBubble.kt\":*)",
+      "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/ui/drawer/HoneycombScreen.kt\":*)",
+      "Bash(\"c:/Users/22403/Documents/launcher/app/src/main/kotlin/com/example/wlauncher/LauncherActivity.kt\":*)"
+    ]
+  }
+}
