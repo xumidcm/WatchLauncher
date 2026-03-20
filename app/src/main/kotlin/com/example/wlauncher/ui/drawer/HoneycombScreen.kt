@@ -16,6 +16,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.util.fisheyeScale
 import com.example.wlauncher.util.generateHexSpiral

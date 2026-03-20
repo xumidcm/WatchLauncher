@@ -6,8 +6,10 @@ import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.launch
 
 /**
  * 组合 Modifier：scale + blur + opacity + translationY。
@@ -29,10 +31,10 @@ fun Modifier.scaleBlurAlpha(
     val animTransY = remember { Animatable(targetValues.translationY) }
 
     LaunchedEffect(targetValues) {
-        kotlinx.coroutines.launch { animScale.animateTo(targetValues.scale, TransitionSpring) }
-        kotlinx.coroutines.launch { animAlpha.animateTo(targetValues.alpha, AlphaSpec) }
-        kotlinx.coroutines.launch { animBlur.animateTo(targetValues.blur, AlphaSpec) }
-        kotlinx.coroutines.launch { animTransY.animateTo(targetValues.translationY, TransitionSpring) }
+        launch { animScale.animateTo(targetValues.scale, TransitionSpring) }
+        launch { animAlpha.animateTo(targetValues.alpha, AlphaSpec) }
+        launch { animBlur.animateTo(targetValues.blur, AlphaSpec) }
+        launch { animTransY.animateTo(targetValues.translationY, TransitionSpring) }
     }
 
     val density = LocalDensity.current
@@ -48,7 +50,7 @@ fun Modifier.scaleBlurAlpha(
         if (blurEnabled && blurPx > 0.5f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             renderEffect = RenderEffect.createBlurEffect(
                 blurPx, blurPx, Shader.TileMode.CLAMP
-            )
+            ).asComposeRenderEffect()
         } else {
             renderEffect = null
         }

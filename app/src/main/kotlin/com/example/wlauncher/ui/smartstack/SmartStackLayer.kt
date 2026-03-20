@@ -52,7 +52,7 @@ fun SmartStackLayer(
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Baseline
+            verticalAlignment = Alignment.Bottom
         ) {
             Text(
                 text = currentTime,

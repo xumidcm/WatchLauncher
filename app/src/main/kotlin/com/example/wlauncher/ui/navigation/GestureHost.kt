@@ -100,6 +100,10 @@ fun GestureHost(
                                         change.consume()
                                     }
                                 }
+
+                                ScreenState.Settings -> {
+                                    // 设置页不拦截手势，由返回按钮处理
+                                }
                             }
                         }
                     },
