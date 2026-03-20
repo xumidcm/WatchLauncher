@@ -1,9 +1,12 @@
 package com.example.wlauncher
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -12,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wlauncher.ui.controlcenter.ControlCenterLayer
 import com.example.wlauncher.ui.drawer.HoneycombScreen
 import com.example.wlauncher.ui.drawer.ListDrawerScreen
@@ -28,6 +30,8 @@ import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel
 
 class LauncherActivity : ComponentActivity() {
+    private val vm: LauncherViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -38,10 +42,22 @@ class LauncherActivity : ComponentActivity() {
 
         setContent {
             WatchLauncherTheme {
-                val vm: LauncherViewModel = viewModel()
                 LauncherScreen(vm)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            vm.onHomePressed()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        vm.onLauncherResumed()
     }
 }
 
@@ -51,6 +67,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val layoutMode by vm.layoutMode.collectAsState()
     val blurEnabled by vm.blurEnabled.collectAsState()
     val apps by vm.apps.collectAsState()
+
+    BackHandler {
+        vm.onBackPressed()
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -76,9 +96,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) {
                 WatchFaceLayer(
-                    onTap = {
-                        if (screenState == ScreenState.Face) vm.setState(ScreenState.Apps)
-                    }
+                    onTap = {}
                 )
             }
 
@@ -149,7 +167,19 @@ fun LauncherScreen(vm: LauncherViewModel) {
                 ControlCenterLayer()
             }
 
-            // Layer 6: Settings
+            // Layer 6: App Launch Transition
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .scaleBlurAlpha(
+                        targetValues = appViewLayerValues(screenState),
+                        screenHeight = screenHeightPx,
+                        blurEnabled = false
+                    )
+            )
+
+            // Layer 7: Settings
             if (screenState == ScreenState.Settings) {
                 LauncherSettingsSheet(
                     currentLayout = layoutMode,
