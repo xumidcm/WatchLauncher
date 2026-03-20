@@ -2,25 +2,14 @@ package com.example.wlauncher.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +20,10 @@ import androidx.compose.ui.unit.sp
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.theme.WatchColors
 
+/**
+ * 桌面设置页面 - 从应用列表顶部进入。
+ * 包含：布局切换、模糊动画开关、关于信息等。
+ */
 @Composable
 fun LauncherSettingsSheet(
     currentLayout: LayoutMode,
@@ -49,7 +42,7 @@ fun LauncherSettingsSheet(
     ) {
         item {
             Text(
-                text = "Launcher Settings",
+                text = "桌面设置",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
@@ -57,35 +50,38 @@ fun LauncherSettingsSheet(
             )
         }
 
-        item { SectionHeader("App Layout") }
+        // 布局模式
+        item { SectionHeader("应用列表布局") }
         item {
             SettingOption(
-                label = "Honeycomb Layout",
-                description = "Circular watch-style app grid",
+                label = "蜂窝布局",
+                description = "watchOS 经典圆形网格",
                 isSelected = currentLayout == LayoutMode.Honeycomb,
                 onClick = { onLayoutChange(LayoutMode.Honeycomb) }
             )
         }
         item {
             SettingOption(
-                label = "List Layout",
-                description = "Alphabetical vertical app list",
+                label = "列表布局",
+                description = "按字母排序的线性列表",
                 isSelected = currentLayout == LayoutMode.List,
                 onClick = { onLayoutChange(LayoutMode.List) }
             )
         }
 
-        item { SectionHeader("Effects") }
+        // 动画设置
+        item { SectionHeader("动画效果") }
         item {
             SettingToggle(
-                label = "Blur Animation",
-                description = "Requires Android 12 or newer",
+                label = "模糊动画",
+                description = "需要 Android 12+ (API 31)",
                 isOn = blurEnabled,
                 onToggle = onBlurToggle
             )
         }
 
-        item { SectionHeader("About") }
+        // 关于
+        item { SectionHeader("关于") }
         item {
             Row(
                 modifier = Modifier
@@ -96,22 +92,14 @@ fun LauncherSettingsSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "WatchLauncher",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.W600,
-                        color = Color.White
-                    )
+                    Text("WatchLauncher", fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "v1.0 | watchOS inspired",
-                        fontSize = 12.sp,
-                        color = WatchColors.TextTertiary
-                    )
+                    Text("v1.0 · watchOS 26 Style", fontSize = 12.sp, color = WatchColors.TextTertiary)
                 }
             }
         }
 
+        // 返回按钮
         item {
             Spacer(modifier = Modifier.height(16.dp))
             Box(
@@ -123,11 +111,7 @@ fun LauncherSettingsSheet(
                     .padding(14.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Back",
-                    fontSize = 14.sp,
-                    color = WatchColors.ActiveCyan
-                )
+                Text("返回", fontSize = 14.sp, color = WatchColors.ActiveCyan)
             }
         }
     }
@@ -164,22 +148,13 @@ private fun SettingOption(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.W600,
-                color = Color.White
-            )
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = description,
-                fontSize = 12.sp,
-                color = WatchColors.TextTertiary
-            )
+            Text(description, fontSize = 12.sp, color = WatchColors.TextTertiary)
         }
         if (isSelected) {
             Icon(
-                imageVector = Icons.Filled.CheckCircle,
+                Icons.Filled.CheckCircle,
                 contentDescription = null,
                 tint = WatchColors.ActiveCyan,
                 modifier = Modifier.size(20.dp)
@@ -205,25 +180,18 @@ private fun SettingToggle(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.W600,
-                color = Color.White
-            )
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = description,
-                fontSize = 12.sp,
-                color = WatchColors.TextTertiary
-            )
+            Text(description, fontSize = 12.sp, color = WatchColors.TextTertiary)
         }
         Box(
             modifier = Modifier
                 .width(44.dp)
                 .height(24.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (isOn) WatchColors.ActiveGreen else Color(0xFF555555)),
+                .background(
+                    if (isOn) WatchColors.ActiveGreen else Color(0xFF555555)
+                ),
             contentAlignment = if (isOn) Alignment.CenterEnd else Alignment.CenterStart
         ) {
             Box(

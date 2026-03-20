@@ -4,17 +4,13 @@ import android.app.Application
 import android.os.Build
 import androidx.compose.ui.geometry.Offset
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.data.repository.AppRepository
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -40,47 +36,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _currentApp = MutableStateFlow<AppInfo?>(null)
     val currentApp: StateFlow<AppInfo?> = _currentApp.asStateFlow()
 
-    private var launchJob: Job? = null
-    private var returnToFaceJob: Job? = null
-    private var launchedExternalApp = false
-
     fun setState(state: ScreenState) {
-        if (state != ScreenState.App) {
-            launchJob?.cancel()
-            launchedExternalApp = false
-            if (state == ScreenState.Face || state == ScreenState.Apps) {
-                _currentApp.value = null
-            }
-        }
         _screenState.value = state
     }
 
     fun openApp(appInfo: AppInfo, origin: Offset = Offset(0.5f, 0.5f)) {
-        launchJob?.cancel()
-        returnToFaceJob?.cancel()
         _currentApp.value = appInfo
         _appOpenOrigin.value = origin
         _screenState.value = ScreenState.App
-        launchedExternalApp = false
-        launchJob = viewModelScope.launch {
-            delay(APP_LAUNCH_DELAY_MS)
-            launchedExternalApp = true
-            appRepository.launchApp(appInfo)
-        }
+        appRepository.launchApp(appInfo)
     }
 
     fun closeApp() {
-        launchJob?.cancel()
-        launchedExternalApp = false
-        _currentApp.value = null
         _screenState.value = ScreenState.Apps
     }
 
     fun goHome() {
-        launchJob?.cancel()
-        launchedExternalApp = false
-        returnToFaceJob?.cancel()
-        _currentApp.value = null
         _screenState.value = ScreenState.Face
     }
 
@@ -97,62 +68,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _screenState.value = ScreenState.Settings
     }
 
-    fun onHomePressed() {
-        when (_screenState.value) {
-            ScreenState.Face -> _screenState.value = ScreenState.Apps
-            ScreenState.Apps,
-            ScreenState.Settings,
-            ScreenState.Stack,
-            ScreenState.Notifications,
-            ScreenState.ControlCenter -> goHome()
-            ScreenState.App -> {
-                if (launchJob?.isActive == true) {
-                    closeApp()
-                } else {
-                    goHome()
-                }
-            }
-        }
-    }
-
-    fun onBackPressed() {
-        when (_screenState.value) {
-            ScreenState.Settings -> _screenState.value = ScreenState.Apps
-            ScreenState.Apps,
-            ScreenState.Stack,
-            ScreenState.Notifications,
-            ScreenState.ControlCenter -> goHome()
-            ScreenState.App -> closeApp()
-            ScreenState.Face -> Unit
-        }
-    }
-
-    fun onLauncherResumed() {
-        if (!launchedExternalApp) return
-
-        launchedExternalApp = false
-        launchJob = null
-        _currentApp.value = null
-        _screenState.value = ScreenState.Apps
-
-        returnToFaceJob?.cancel()
-        returnToFaceJob = viewModelScope.launch {
-            delay(APP_RETURN_ANIMATION_MS)
-            if (_screenState.value == ScreenState.Apps) {
-                _screenState.value = ScreenState.Face
-            }
-        }
-    }
-
     override fun onCleared() {
-        launchJob?.cancel()
-        returnToFaceJob?.cancel()
         super.onCleared()
         appRepository.destroy()
-    }
-
-    private companion object {
-        const val APP_LAUNCH_DELAY_MS = 420L
-        const val APP_RETURN_ANIMATION_MS = 320L
     }
 }
