@@ -22,6 +22,8 @@ class IconPackManager(private val context: Context) {
         // 通过 action 扫描
         val actions = listOf(
             "org.adw.launcher.THEME",
+            "org.adw.launcher.THEMES",
+            "org.adw.launcher.icons.ACTION_PICK_ICON",
             "com.novalauncher.THEME",
             "com.gau.go.launcherex.theme",
             "com.dlto.atom.launcher.THEME",
@@ -32,16 +34,35 @@ class IconPackManager(private val context: Context) {
             "com.sec.android.app.launcher.THEME",
             "com.samsung.launcher.ICONPACK",
             "ch.deletescape.lawnchair.ICONPACK",
+            "ch.deletescape.lawnchair.PICK_ICON",
             "app.flavor.bear.ICONPACK",
-            "is.shortcut",
-            "android.intent.action.MAIN"
+            "com.motorola.launcher.ACTION_ICON_PACK",
+            "com.phonemetra.turbo.launcher.THEMES",
+            "com.phonemetra.turbo.launcher.icons.ACTION_PICK_ICON",
+            "net.oneplus.launcher.icons.ACTION_PICK_ICON",
+            "com.gridappsinc.launcher.theme.apk_action",
+            "com.lge.launcher2.THEME",
+            "com.android.dxtop.launcher.THEME",
+            "ginlemon.smartlauncher.THEMES",
+            "home.solo.launcher.free.THEMES",
+            "home.solo.launcher.free.ACTION_ICON",
+            "com.gtp.nextlauncher.theme",
+            "com.tsf.shell.themes",
+            "com.zeroteam.zerolauncher.theme",
+            "mobi.bbase.ahome.THEME",
+            "com.rogro.GDE.THEME.1",
+            "com.sonymobile.home.ICON_PACK",
+            "com.daeva112.manager.THEME",
+            "com.daeva112.manager.MAIN"
         )
 
         val categories = listOf(
             "com.anddoes.launcher.THEME",
             "com.teslacoilsw.launcher.THEME",
+            "com.novalauncher.category.CUSTOM_ICON_PICKER",
             "com.samsung.theme.appiconpack.category.Multi",
-            "android.theme.appiconpack"
+            "android.theme.appiconpack",
+            "android.intent.category.THEME_SCENE"
         )
 
         for (action in actions) {

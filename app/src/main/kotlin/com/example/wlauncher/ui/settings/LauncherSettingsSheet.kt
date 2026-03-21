@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -22,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.theme.WatchColors
-import kotlin.math.abs
 
 @Composable
 fun LauncherSettingsSheet(
@@ -86,52 +86,14 @@ fun LauncherSettingsSheet(
             if (currentLayout == LayoutMode.List) {
                 item(key = "list_icon_size") {
                     val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_icon_size" }, screenCenterY, screenHeightPx)
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                            .graphicsLayer { scaleX = s; scaleY = s; alpha = s }
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(WatchColors.SurfaceGlass)
-                            .padding(14.dp)
-                    ) {
-                        Text("图标大小: ${listIconSize}dp", fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        androidx.compose.material3.Slider(
-                            value = listIconSize.toFloat(),
-                            onValueChange = { onListIconSizeChange(it.toInt()) },
-                            valueRange = 32f..80f,
-                            steps = 11,
-                            colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = WatchColors.ActiveCyan,
-                                activeTrackColor = WatchColors.ActiveCyan
-                            )
-                        )
-                    }
+                    StepperSetting("图标大小", "${listIconSize}dp", listIconSize, 32, 80, 4, onListIconSizeChange, s)
                 }
             }
             // 蜂窝列数
             if (currentLayout == LayoutMode.Honeycomb) {
                 item(key = "honeycomb_cols") {
                     val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_cols" }, screenCenterY, screenHeightPx)
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                            .graphicsLayer { scaleX = s; scaleY = s; alpha = s }
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(WatchColors.SurfaceGlass)
-                            .padding(14.dp)
-                    ) {
-                        Text("窄行列数: $honeycombCols (宽行 ${honeycombCols + 1})", fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        androidx.compose.material3.Slider(
-                            value = honeycombCols.toFloat(),
-                            onValueChange = { onHoneycombColsChange(it.toInt()) },
-                            valueRange = 3f..6f,
-                            steps = 2,
-                            colors = androidx.compose.material3.SliderDefaults.colors(
-                                thumbColor = WatchColors.ActiveCyan,
-                                activeTrackColor = WatchColors.ActiveCyan
-                            )
-                        )
-                    }
+                    StepperSetting("窄行列数", "$honeycombCols (宽行 ${honeycombCols + 1})", honeycombCols, 3, 6, 1, onHoneycombColsChange, s)
                 }
             }
 
@@ -226,8 +188,11 @@ private fun itemFisheye(
 ): Float {
     if (info == null) return 0.9f
     val itemCenterY = info.offset + info.size / 2f
-    val dist = abs(itemCenterY - screenCenterY)
-    val t = (dist / (screenHeight / 2f)).coerceIn(0f, 1f)
+    // 只在底部有鱼眼缩放效果，上部保持1.0
+    if (itemCenterY <= screenCenterY) return 1f
+    val dist = itemCenterY - screenCenterY
+    val maxDist = screenHeight / 2f
+    val t = (dist / maxDist).coerceIn(0f, 1f)
     return 1f - 0.15f * t
 }
 
@@ -309,6 +274,53 @@ private fun SettingToggle(
             contentAlignment = if (isOn) Alignment.CenterEnd else Alignment.CenterStart
         ) {
             Box(modifier = Modifier.padding(2.dp).size(20.dp).clip(RoundedCornerShape(10.dp)).background(Color.White))
+        }
+    }
+}
+
+@Composable
+private fun StepperSetting(
+    label: String,
+    valueText: String,
+    value: Int,
+    min: Int,
+    max: Int,
+    step: Int,
+    onChange: (Int) -> Unit,
+    scale: Float = 1f
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = scale.coerceIn(0.3f, 1f) }
+            .clip(RoundedCornerShape(16.dp))
+            .background(WatchColors.SurfaceGlass)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(label, fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(valueText, fontSize = 12.sp, color = WatchColors.TextTertiary)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(if (value > min) WatchColors.ActiveCyan.copy(alpha = 0.3f) else Color(0xFF333333))
+                    .clickable(enabled = value > min) { onChange((value - step).coerceAtLeast(min)) },
+                contentAlignment = Alignment.Center
+            ) { Text("−", color = if (value > min) WatchColors.ActiveCyan else Color(0xFF666666), fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(if (value < max) WatchColors.ActiveCyan.copy(alpha = 0.3f) else Color(0xFF333333))
+                    .clickable(enabled = value < max) { onChange((value + step).coerceAtMost(max)) },
+                contentAlignment = Alignment.Center
+            ) { Text("+", color = if (value < max) WatchColors.ActiveCyan else Color(0xFF666666), fontSize = 18.sp, fontWeight = FontWeight.Bold) }
         }
     }
 }

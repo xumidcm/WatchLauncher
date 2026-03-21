@@ -10,6 +10,8 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,22 +19,29 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.example.wlauncher.data.model.AppInfo
+import kotlinx.coroutines.delay
 
+/**
+ * 长按菜单弹窗 — 在图标原位显示，背景模糊压暗，图标放大，菜单在图标上方或下方弹出
+ */
 @Composable
 fun AppShortcutPopup(
     app: AppInfo,
@@ -40,6 +49,23 @@ fun AppShortcutPopup(
 ) {
     val context = LocalContext.current
     val useBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+    // 入场动画
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(16)
+        visible = true
+    }
+    val animScale by animateFloatAsState(
+        targetValue = if (visible) 1f else 0.7f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f),
+        label = "popup_scale"
+    )
+    val animAlpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = spring(stiffness = 800f),
+        label = "popup_alpha"
+    )
 
     Popup(
         alignment = Alignment.Center,
@@ -49,11 +75,12 @@ fun AppShortcutPopup(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer { alpha = animAlpha }
                 .let { mod ->
                     if (useBlur) {
                         mod.graphicsLayer {
                             renderEffect = RenderEffect.createBlurEffect(
-                                20f, 20f, Shader.TileMode.CLAMP
+                                25f, 25f, Shader.TileMode.CLAMP
                             ).asComposeRenderEffect()
                         }
                     } else mod
@@ -64,24 +91,18 @@ fun AppShortcutPopup(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable(indication = null, interactionSource = null) {}
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = animScale
+                        scaleY = animScale
+                    }
+                    .clickable(indication = null, interactionSource = null) {}
             ) {
-                // 应用图标
-                Image(
-                    bitmap = app.cachedIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(80.dp).clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(app.label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.W600)
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 菜单项
+                // 菜单（图标上方）
                 Column(
                     modifier = Modifier
-                        .width(200.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .width(180.dp)
+                        .clip(RoundedCornerShape(14.dp))
                         .background(Color(0xFF2A2A2A))
                 ) {
                     ShortcutMenuItem("应用信息") {
@@ -100,6 +121,18 @@ fun AppShortcutPopup(
                         onDismiss()
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 放大的应用图标
+                Image(
+                    bitmap = app.cachedIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(90.dp).clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(app.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W600)
             }
         }
     }
@@ -110,12 +143,12 @@ private fun ShortcutMenuItem(text: String, color: Color = Color.White, onClick: 
     Text(
         text = text,
         color = color,
-        fontSize = 15.sp,
+        fontSize = 14.sp,
         fontWeight = FontWeight.W500,
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
     )
 }
 
