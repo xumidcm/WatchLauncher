@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,10 +24,10 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.example.wlauncher.data.model.AppInfo
-import com.example.wlauncher.ui.theme.WatchColors
 import com.example.wlauncher.util.fisheyeScale
 import com.example.wlauncher.util.generateHoneycombRows
 import kotlinx.coroutines.launch
@@ -36,10 +37,14 @@ import kotlin.math.abs
 fun HoneycombScreen(
     apps: List<AppInfo>,
     blurEnabled: Boolean = true,
+    narrowCols: Int = 4,
     onAppClick: (AppInfo, Offset) -> Unit,
     onLongClick: (AppInfo) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
+
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val screenWidthPx = with(density) { maxWidth.toPx() }
@@ -52,13 +57,11 @@ fun HoneycombScreen(
         val iconSizeDp = 80.dp
         val cellSize = with(density) { iconSizeDp.toPx() }
         val iconSizePx = cellSize
-        val narrowCols = 4
 
         val positions = remember(apps.size, narrowCols, cellSize) {
             generateHoneycombRows(apps.size, narrowCols, cellSize)
         }
 
-        // 用 Animatable 驱动滚动，避免 state 触发重组
         val scrollOffset = remember { Animatable(0f) }
         val scope = rememberCoroutineScope()
 
@@ -81,22 +84,18 @@ fun HoneycombScreen(
                             change.consume()
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             val current = scrollOffset.value
-                            // 橡皮筋效果：超出边界时阻力增大
                             val overscroll = when {
                                 current + dragAmount.y > maxScrollY -> (current + dragAmount.y - maxScrollY)
                                 current + dragAmount.y < -maxScrollY -> -((-maxScrollY) - (current + dragAmount.y))
                                 else -> 0f
                             }
-                            val dampedDrag = if (overscroll != 0f) {
-                                dragAmount.y * 0.3f // 超出边界时 30% 阻力
-                            } else dragAmount.y
+                            val dampedDrag = if (overscroll != 0f) dragAmount.y * 0.3f else dragAmount.y
                             scope.launch { scrollOffset.snapTo(current + dampedDrag) }
                         },
                         onDragEnd = {
                             val velocity = velocityTracker.calculateVelocity()
                             val current = scrollOffset.value
                             if (current < -maxScrollY || current > maxScrollY) {
-                                // 超出边界，spring 回弹
                                 scope.launch {
                                     scrollOffset.animateTo(
                                         current.coerceIn(-maxScrollY, maxScrollY),
@@ -130,7 +129,6 @@ fun HoneycombScreen(
                 val gridPos = positions[index]
                 val posY = screenCenterY + gridPos.y + currentScroll
 
-                // 跳过不可见图标，减少 composition
                 if (posY < visibleTop || posY > visibleBottom) return@forEachIndexed
 
                 key("${app.packageName}/${app.activityName}") {
@@ -143,6 +141,10 @@ fun HoneycombScreen(
                             val syPos = screenCenterY + gridPos.y + sy
                             onAppClick(app, Offset(sx / screenWidthPx, syPos / screenHeightPx))
                         },
+                        onLongClick = {
+                            vibrateHaptic(context)
+                            longPressedApp = app
+                        },
                         modifier = Modifier.graphicsLayer {
                             val sy = scrollOffset.value
                             val posX = screenCenterX + gridPos.x
@@ -151,7 +153,6 @@ fun HoneycombScreen(
                             translationX = posX - iconSizePx / 2
                             translationY = pY - iconSizePx / 2
 
-                            // 鱼眼缩放
                             val dx = posX - screenCenterX
                             val dy = pY - screenCenterY
                             val dist = kotlin.math.sqrt(dx * dx + dy * dy)
@@ -160,7 +161,6 @@ fun HoneycombScreen(
                             scaleY = s
                             this.alpha = s.coerceIn(0.2f, 1f)
 
-                            // 边缘模糊
                             if (useBlurApi) {
                                 val edgeDist = minOf(pY, screenHeightPx - pY)
                                 val blurZone = screenHeightPx * 0.15f
@@ -197,5 +197,10 @@ fun HoneycombScreen(
                 .height(80.dp)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
         )
+    }
+
+    // App Shortcuts 弹窗
+    longPressedApp?.let { app ->
+        AppShortcutPopup(app = app, onDismiss = { longPressedApp = null })
     }
 }

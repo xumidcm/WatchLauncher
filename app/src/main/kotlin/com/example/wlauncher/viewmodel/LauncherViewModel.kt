@@ -30,6 +30,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_SPLASH_DELAY = intPreferencesKey("splash_delay")
         val KEY_ICON_PACK = stringPreferencesKey("icon_pack")
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
+        val KEY_LIST_ICON_SIZE = intPreferencesKey("list_icon_size")
+        val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
     }
 
     private val store = application.dataStore
@@ -57,6 +59,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _appOrder = MutableStateFlow<List<String>>(emptyList())
     val appOrder: StateFlow<List<String>> = _appOrder.asStateFlow()
+
+    private val _listIconSize = MutableStateFlow(48)
+    val listIconSize: StateFlow<Int> = _listIconSize.asStateFlow()
+
+    private val _honeycombCols = MutableStateFlow(4)
+    val honeycombCols: StateFlow<Int> = _honeycombCols.asStateFlow()
 
     private val _splashIcon = MutableStateFlow(true)
     val splashIcon: StateFlow<Boolean> = _splashIcon.asStateFlow()
@@ -97,6 +105,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     _appOrder.value = order
                     appRepository.setCustomOrder(order)
                 }
+                prefs[KEY_LIST_ICON_SIZE]?.let { _listIconSize.value = it.coerceIn(32, 80) }
+                prefs[KEY_HONEYCOMB_COLS]?.let { _honeycombCols.value = it.coerceIn(3, 6) }
             }
         }
     }
@@ -197,6 +207,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _appOrder.value = order
         appRepository.setCustomOrder(order)
         viewModelScope.launch { store.edit { it[KEY_APP_ORDER] = order.joinToString(",") } }
+    }
+
+    fun setListIconSize(size: Int) {
+        _listIconSize.value = size.coerceIn(32, 80)
+        viewModelScope.launch { store.edit { it[KEY_LIST_ICON_SIZE] = _listIconSize.value } }
+    }
+
+    fun setHoneycombCols(cols: Int) {
+        _honeycombCols.value = cols.coerceIn(3, 6)
+        viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_COLS] = _honeycombCols.value } }
     }
 
     fun swapApps(fromIndex: Int, toIndex: Int) {

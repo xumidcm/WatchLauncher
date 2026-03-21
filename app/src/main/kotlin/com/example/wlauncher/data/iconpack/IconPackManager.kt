@@ -3,7 +3,6 @@ package com.example.wlauncher.data.iconpack
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Resources
 import android.graphics.drawable.Drawable
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -16,67 +15,109 @@ data class IconPackInfo(
 
 class IconPackManager(private val context: Context) {
 
-    /**
-     * 扫描已安装的图标包（兼容 ADW/Nova/Samsung/Launcher3 规范）
-     */
     fun getInstalledIconPacks(): List<IconPackInfo> {
         val pm = context.packageManager
         val packs = mutableMapOf<String, IconPackInfo>()
 
-        val themes = listOf(
+        // 通过 action 扫描
+        val actions = listOf(
             "org.adw.launcher.THEME",
             "com.novalauncher.THEME",
             "com.gau.go.launcherex.theme",
-            "com.dlto.atom.launcher.THEME"
+            "com.dlto.atom.launcher.THEME",
+            "com.teslacoilsw.launcher.THEME",
+            "com.fede.launcher.THEME_ICONPACK",
+            "com.anddoes.launcher.THEME",
+            "com.oneplus.launcher.ICONPACK",
+            "com.sec.android.app.launcher.THEME",
+            "com.samsung.launcher.ICONPACK",
+            "ch.deletescape.lawnchair.ICONPACK",
+            "app.flavor.bear.ICONPACK",
+            "is.shortcut",
+            "android.intent.action.MAIN"
         )
 
-        for (action in themes) {
-            val intent = Intent(action)
-            val resolved = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
-            for (ri in resolved) {
-                val pkg = ri.activityInfo.packageName
-                if (pkg !in packs) {
-                    packs[pkg] = IconPackInfo(
-                        packageName = pkg,
-                        label = ri.loadLabel(pm).toString(),
-                        icon = ri.loadIcon(pm)
+        val categories = listOf(
+            "com.anddoes.launcher.THEME",
+            "com.teslacoilsw.launcher.THEME",
+            "com.samsung.theme.appiconpack.category.Multi",
+            "android.theme.appiconpack"
+        )
+
+        for (action in actions) {
+            try {
+                val intent = Intent(action)
+                val resolved = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
+                for (ri in resolved) {
+                    val pkg = ri.activityInfo.packageName
+                    // 过滤掉明显不是图标包的（需要有 appfilter.xml）
+                    if (pkg !in packs && hasAppFilter(pkg)) {
+                        packs[pkg] = IconPackInfo(pkg, ri.loadLabel(pm).toString(), ri.loadIcon(pm))
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        for (cat in categories) {
+            try {
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(cat)
+                val resolved = pm.queryIntentActivities(intent, PackageManager.GET_META_DATA)
+                for (ri in resolved) {
+                    val pkg = ri.activityInfo.packageName
+                    if (pkg !in packs && hasAppFilter(pkg)) {
+                        packs[pkg] = IconPackInfo(pkg, ri.loadLabel(pm).toString(), ri.loadIcon(pm))
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 兜底：扫描所有安装的 app，检查是否有 appfilter.xml
+        try {
+            val allApps = pm.getInstalledApplications(0)
+            for (app in allApps) {
+                if (app.packageName !in packs && hasAppFilter(app.packageName)) {
+                    packs[app.packageName] = IconPackInfo(
+                        app.packageName,
+                        pm.getApplicationLabel(app).toString(),
+                        pm.getApplicationIcon(app)
                     )
                 }
             }
-        }
+        } catch (_: Exception) {}
+
         return packs.values.toList().sortedBy { it.label.lowercase() }
     }
 
-    /**
-     * 从图标包中加载 appfilter.xml，返回 ComponentName -> drawableName 映射
-     */
+    private fun hasAppFilter(pkg: String): Boolean {
+        return try {
+            val ctx = context.createPackageContext(pkg, Context.CONTEXT_IGNORE_SECURITY)
+            try { ctx.assets.open("appfilter.xml").close(); true } catch (_: Exception) {
+                try {
+                    val res = context.packageManager.getResourcesForApplication(pkg)
+                    res.getIdentifier("appfilter", "xml", pkg) != 0
+                } catch (_: Exception) { false }
+            }
+        } catch (_: Exception) { false }
+    }
+
     fun loadAppFilter(iconPackPkg: String): Map<String, String> {
         val map = mutableMapOf<String, String>()
         try {
-            val pm = context.packageManager
-            val res = pm.getResourcesForApplication(iconPackPkg)
+            val res = context.packageManager.getResourcesForApplication(iconPackPkg)
 
-            // 尝试从 assets 读取 appfilter.xml
             val assetStream = try {
-                val assetManager = context.createPackageContext(
-                    iconPackPkg, Context.CONTEXT_IGNORE_SECURITY
-                ).assets
-                assetManager.open("appfilter.xml")
+                context.createPackageContext(iconPackPkg, Context.CONTEXT_IGNORE_SECURITY)
+                    .assets.open("appfilter.xml")
             } catch (_: Exception) { null }
 
             if (assetStream != null) {
-                val factory = XmlPullParserFactory.newInstance()
-                val parser = factory.newPullParser()
+                val parser = XmlPullParserFactory.newInstance().newPullParser()
                 parser.setInput(assetStream, "UTF-8")
                 parseAppFilter(parser, map)
                 assetStream.close()
             } else {
-                // 尝试从 xml 资源读取
                 val resId = res.getIdentifier("appfilter", "xml", iconPackPkg)
-                if (resId != 0) {
-                    val parser = res.getXml(resId)
-                    parseAppFilter(parser, map)
-                }
+                if (resId != 0) parseAppFilter(res.getXml(resId), map)
             }
         } catch (_: Exception) {}
         return map
@@ -89,10 +130,7 @@ class IconPackManager(private val context: Context) {
                 val component = parser.getAttributeValue(null, "component")
                 val drawable = parser.getAttributeValue(null, "drawable")
                 if (component != null && drawable != null) {
-                    // component 格式: ComponentInfo{pkg/cls} 或 pkg/cls
-                    val clean = component
-                        .removePrefix("ComponentInfo{")
-                        .removeSuffix("}")
+                    val clean = component.removePrefix("ComponentInfo{").removeSuffix("}")
                     map[clean] = drawable
                 }
             }
@@ -100,9 +138,6 @@ class IconPackManager(private val context: Context) {
         }
     }
 
-    /**
-     * 从图标包加载指定 drawable
-     */
     fun loadIconDrawable(iconPackPkg: String, drawableName: String): Drawable? {
         return try {
             val res = context.packageManager.getResourcesForApplication(iconPackPkg)

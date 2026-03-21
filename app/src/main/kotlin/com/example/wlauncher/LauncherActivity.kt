@@ -93,6 +93,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val splashIcon by vm.splashIcon.collectAsState()
     val splashDelay by vm.splashDelay.collectAsState()
     val currentApp by vm.currentApp.collectAsState()
+    val listIconSize by vm.listIconSize.collectAsState()
+    val honeycombCols by vm.honeycombCols.collectAsState()
 
     // 跟踪上一个状态，判断是否从 App 返回
     var prevState by remember { mutableStateOf(screenState) }
@@ -142,15 +144,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .let { mod ->
-                        // 动画过渡中阻止触摸
-                        if (screenState == ScreenState.App) {
-                            mod.pointerInput(Unit) {
-                                awaitPointerEventScope { while (true) { awaitPointerEvent().changes.forEach { it.consume() } } }
-                            }
-                        } else mod
-                    }
-                    .fillMaxSize()
                     .scaleBlurAlpha(
                         targetValues = appListLayerValues(screenState),
                         screenHeight = screenHeightPx,
@@ -162,14 +155,25 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     LayoutMode.Honeycomb -> HoneycombScreen(
                         apps = apps,
                         blurEnabled = blurEnabled,
+                        narrowCols = honeycombCols,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) }
                     )
                     LayoutMode.List -> ListDrawerScreen(
                         apps = apps,
                         blurEnabled = blurEnabled,
+                        iconSize = listIconSize.dp,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) }
                     )
                 }
+            }
+
+            // 动画过渡中阻止触摸（覆盖在 drawer 上层）
+            if (screenState == ScreenState.App) {
+                Box(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) { awaitPointerEvent().changes.forEach { it.consume() } }
+                    }
+                })
             }
 
             // 启动遮罩 — 黑场 + 居中应用图标
@@ -236,6 +240,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     lowResIcons = vm.lowResIcons.collectAsState().value,
                     splashIcon = splashIcon,
                     splashDelay = splashDelay,
+                    listIconSize = listIconSize,
+                    honeycombCols = honeycombCols,
                     iconPackName = iconPackState,
                     iconPacks = iconPacks,
                     onLayoutChange = { vm.setLayoutMode(it) },
@@ -243,6 +249,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onLowResToggle = { vm.setLowResIcons(it) },
                     onSplashToggle = { vm.setSplashIcon(it) },
                     onSplashDelayChange = { vm.setSplashDelay(it) },
+                    onListIconSizeChange = { vm.setListIconSize(it) },
+                    onHoneycombColsChange = { vm.setHoneycombCols(it) },
                     onIconPackChange = { vm.setIconPack(it) },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )

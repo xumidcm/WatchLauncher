@@ -3,16 +3,17 @@ package com.example.wlauncher.ui.drawer
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,17 +23,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wlauncher.data.model.AppInfo
 import kotlin.math.abs
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ListDrawerScreen(
     apps: List<AppInfo>,
     blurEnabled: Boolean = true,
+    iconSize: Dp = 48.dp,
     onAppClick: (AppInfo, Offset) -> Unit,
     onLongClick: (AppInfo) -> Unit = {},
     modifier: Modifier = Modifier
@@ -40,31 +47,44 @@ fun ListDrawerScreen(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val useBlurApi = blurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val context = LocalContext.current
+    var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
+
+    // 记录每个可见 item 的屏幕内实际位置
+    val itemPositions = remember { mutableMapOf<Int, Float>() }
 
     Box(modifier = modifier.fillMaxSize()) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
+            val screenWidthPx = with(density) { maxWidth.toPx() }
             val screenCenterY = screenHeightPx / 2f
+            // 首项居中：top padding = 屏幕中心 - item高度/2
+            val itemHeightApprox = with(density) { (iconSize + 20.dp).toPx() }
+            val topPadding = with(density) { ((screenCenterY - itemHeightApprox / 2f) / density.density).dp }
 
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().background(Color.Black),
                 contentPadding = PaddingValues(
-                    top = 40.dp,
-                    bottom = 60.dp,
+                    top = topPadding.coerceAtLeast(20.dp),
+                    bottom = topPadding.coerceAtLeast(60.dp),
                     start = 12.dp,
                     end = 12.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(apps, key = { "${it.packageName}/${it.activityName}" }) { app ->
-                    val itemIndex = apps.indexOf(app)
-                    val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == itemIndex }
+                itemsIndexed(apps, key = { _, app -> "${app.packageName}/${app.activityName}" }) { index, app ->
+                    val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
                     val itemScale = computeItemScale(itemInfo, screenCenterY, screenHeightPx)
                     val edgeBlur = computeEdgeBlur(itemInfo, screenHeightPx, density)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .onGloballyPositioned { coords ->
+                                val posY = coords.positionInRoot().y
+                                val centerY = posY + coords.size.height / 2f
+                                itemPositions[index] = centerY
+                            }
                             .graphicsLayer {
                                 scaleX = itemScale
                                 scaleY = itemScale
@@ -75,17 +95,23 @@ fun ListDrawerScreen(
                                     ).asComposeRenderEffect()
                                 }
                             }
-                            .clickable {
-                                val centerY = (itemInfo?.let { it.offset + it.size / 2f } ?: screenCenterY) / screenHeightPx
-                                onAppClick(app, Offset(0.15f, centerY))
-                            }
+                            .combinedClickable(
+                                onClick = {
+                                    val centerY = itemPositions[index] ?: screenCenterY
+                                    onAppClick(app, Offset(0.15f, centerY / screenHeightPx))
+                                },
+                                onLongClick = {
+                                    vibrateHaptic(context)
+                                    longPressedApp = app
+                                }
+                            )
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             bitmap = app.cachedIcon,
                             contentDescription = app.label,
-                            modifier = Modifier.size(48.dp).clip(CircleShape),
+                            modifier = Modifier.size(iconSize).clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                         Spacer(modifier = Modifier.width(14.dp))
@@ -110,6 +136,11 @@ fun ListDrawerScreen(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(60.dp)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
         )
+    }
+
+    // App Shortcuts 弹窗
+    longPressedApp?.let { app ->
+        AppShortcutPopup(app = app, onDismiss = { longPressedApp = null })
     }
 }
 

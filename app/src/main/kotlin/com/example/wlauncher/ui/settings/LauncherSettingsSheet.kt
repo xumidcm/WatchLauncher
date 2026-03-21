@@ -31,13 +31,17 @@ fun LauncherSettingsSheet(
     lowResIcons: Boolean = false,
     splashIcon: Boolean = true,
     splashDelay: Int = 500,
+    listIconSize: Int = 48,
+    honeycombCols: Int = 4,
     iconPackName: String? = null,
-    iconPacks: List<Pair<String?, String>> = emptyList(), // (packageName?, label)
+    iconPacks: List<Pair<String?, String>> = emptyList(),
     onLayoutChange: (LayoutMode) -> Unit,
     onBlurToggle: (Boolean) -> Unit,
     onLowResToggle: (Boolean) -> Unit = {},
     onSplashToggle: (Boolean) -> Unit = {},
     onSplashDelayChange: (Int) -> Unit = {},
+    onListIconSizeChange: (Int) -> Unit = {},
+    onHoneycombColsChange: (Int) -> Unit = {},
     onIconPackChange: (String?) -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -76,6 +80,59 @@ fun LauncherSettingsSheet(
             item(key = "list") {
                 val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list" }, screenCenterY, screenHeightPx)
                 SettingOption("列表布局", "按字母排序的线性列表", currentLayout == LayoutMode.List, { onLayoutChange(LayoutMode.List) }, s)
+            }
+
+            // 列表图标大小
+            if (currentLayout == LayoutMode.List) {
+                item(key = "list_icon_size") {
+                    val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_icon_size" }, screenCenterY, screenHeightPx)
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .graphicsLayer { scaleX = s; scaleY = s; alpha = s }
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(WatchColors.SurfaceGlass)
+                            .padding(14.dp)
+                    ) {
+                        Text("图标大小: ${listIconSize}dp", fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.Slider(
+                            value = listIconSize.toFloat(),
+                            onValueChange = { onListIconSizeChange(it.toInt()) },
+                            valueRange = 32f..80f,
+                            steps = 11,
+                            colors = androidx.compose.material3.SliderDefaults.colors(
+                                thumbColor = WatchColors.ActiveCyan,
+                                activeTrackColor = WatchColors.ActiveCyan
+                            )
+                        )
+                    }
+                }
+            }
+            // 蜂窝列数
+            if (currentLayout == LayoutMode.Honeycomb) {
+                item(key = "honeycomb_cols") {
+                    val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_cols" }, screenCenterY, screenHeightPx)
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .graphicsLayer { scaleX = s; scaleY = s; alpha = s }
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(WatchColors.SurfaceGlass)
+                            .padding(14.dp)
+                    ) {
+                        Text("窄行列数: $honeycombCols (宽行 ${honeycombCols + 1})", fontSize = 14.sp, fontWeight = FontWeight.W600, color = Color.White)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.Slider(
+                            value = honeycombCols.toFloat(),
+                            onValueChange = { onHoneycombColsChange(it.toInt()) },
+                            valueRange = 3f..6f,
+                            steps = 2,
+                            colors = androidx.compose.material3.SliderDefaults.colors(
+                                thumbColor = WatchColors.ActiveCyan,
+                                activeTrackColor = WatchColors.ActiveCyan
+                            )
+                        )
+                    }
+                }
             }
 
             item(key = "h_anim") { ScaledSectionHeader("动画效果", listState, "h_anim", screenCenterY, screenHeightPx) }
