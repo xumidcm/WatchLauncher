@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import com.example.wlauncher.data.model.AppInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,11 +47,13 @@ class AppRepository(private val context: Context) {
         _apps.value = resolveInfos
             .filter { it.activityInfo.packageName != myPackage }
             .map { ri ->
+                val drawable = ri.loadIcon(pm)
                 AppInfo(
                     label = ri.loadLabel(pm).toString(),
                     packageName = ri.activityInfo.packageName,
                     activityName = ri.activityInfo.name,
-                    icon = ri.loadIcon(pm)
+                    icon = drawable,
+                    cachedIcon = drawable.toBitmap(128, 128).asImageBitmap()
                 )
             }
             .sortedBy { it.label.lowercase() }
@@ -61,7 +65,12 @@ class AppRepository(private val context: Context) {
             component = android.content.ComponentName(appInfo.packageName, appInfo.activityName)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
-        context.startActivity(intent)
+        val options = android.app.ActivityOptions.makeCustomAnimation(
+            context,
+            android.R.anim.fade_in,
+            android.R.anim.fade_out
+        )
+        context.startActivity(intent, options.toBundle())
     }
 
     fun destroy() {

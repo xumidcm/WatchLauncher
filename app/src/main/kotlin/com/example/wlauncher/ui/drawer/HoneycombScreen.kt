@@ -2,10 +2,13 @@ package com.example.wlauncher.ui.drawer
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -31,7 +35,6 @@ import com.example.wlauncher.ui.theme.WatchColors
 import com.example.wlauncher.util.fisheyeScale
 import com.example.wlauncher.util.generateHoneycombRows
 import kotlinx.coroutines.launch
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 @Composable
@@ -48,10 +51,10 @@ fun HoneycombScreen(
         val screenCenter = Offset(screenWidthPx / 2f, screenHeightPx / 2f)
         val screenRadius = minOf(screenWidthPx, screenHeightPx) / 2f
 
-        // 图标尺寸和列数
-        val iconSizeDp = 54.dp
+        // 图标尺寸和列数（固定 4-5 交替，匹配 Apple Watch 布局）
+        val iconSizeDp = 80.dp
         val cellSize = with(density) { iconSizeDp.toPx() }
-        val narrowCols = (floor(screenWidthPx / cellSize).toInt() - 1).coerceAtLeast(3)
+        val narrowCols = 4
 
         // 行列式蜂窝布局
         val positions = remember(apps.size, narrowCols, cellSize) {
@@ -124,10 +127,10 @@ fun HoneycombScreen(
                     screenPos.x - screenCenter.x,
                     screenPos.y - screenCenter.y
                 ).getDistance()
-                val scale = fisheyeScale(distFromCenter, screenRadius * 1.2f)
+                val scale = fisheyeScale(distFromCenter, screenRadius * 1.8f, minScale = 0.55f)
 
                 AppBubble(
-                    icon = app.icon,
+                    icon = app.cachedIcon,
                     size = iconSizeDp,
                     onClick = {
                         val normalizedOrigin = Offset(
@@ -151,6 +154,23 @@ fun HoneycombScreen(
                 )
             }
         }
+
+        // 顶部渐变遮罩
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black, Color.Transparent)))
+        )
+        // 底部渐变遮罩
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+        )
 
         // 设置按钮
         FloatingActionButton(

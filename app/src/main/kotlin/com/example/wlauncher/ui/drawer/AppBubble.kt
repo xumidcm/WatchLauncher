@@ -1,6 +1,5 @@
 package com.example.wlauncher.ui.drawer
 
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -11,15 +10,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 
 @Composable
 fun AppBubble(
-    icon: Drawable,
+    icon: ImageBitmap,
     size: Dp = 54.dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -33,7 +31,7 @@ fun AppBubble(
         contentAlignment = Alignment.Center
     ) {
         Image(
-            bitmap = icon.toBitmap(128, 128).asImageBitmap(),
+            bitmap = icon,
             contentDescription = null,
             modifier = Modifier.size(size),
             contentScale = ContentScale.Crop

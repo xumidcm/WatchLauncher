@@ -71,6 +71,8 @@ class LauncherActivity : ComponentActivity() {
      */
     override fun onResume() {
         super.onResume()
+        @Suppress("DEPRECATION")
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
         if (::vm.isInitialized) {
             vm.onReturnToLauncher()
         }
@@ -83,6 +85,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val layoutMode by vm.layoutMode.collectAsState()
     val blurEnabled by vm.blurEnabled.collectAsState()
     val apps by vm.apps.collectAsState()
+    val appOpenOrigin by vm.appOpenOrigin.collectAsState()
 
     BoxWithConstraints(
         modifier = Modifier
@@ -117,7 +120,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     .scaleBlurAlpha(
                         targetValues = appListLayerValues(screenState),
                         screenHeight = screenHeightPx,
-                        blurEnabled = blurEnabled
+                        blurEnabled = blurEnabled,
+                        origin = if (screenState == ScreenState.App) appOpenOrigin else null
                     )
             ) {
                 when (layoutMode) {

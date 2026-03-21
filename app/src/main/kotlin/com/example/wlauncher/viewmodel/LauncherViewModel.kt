@@ -9,6 +9,7 @@ import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.data.repository.AppRepository
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +39,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     // 是否正在启动外部应用（用于区分 onResume 来源）
     private var launchingExternalApp = false
+    private var launchJob: Job? = null
 
     fun setState(state: ScreenState) {
         _screenState.value = state
@@ -51,7 +53,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _appOpenOrigin.value = origin
         _screenState.value = ScreenState.App
 
-        viewModelScope.launch {
+        launchJob?.cancel()
+        launchJob = viewModelScope.launch {
             // 等待退出动画播放完 (~500ms)
             delay(500)
             launchingExternalApp = true
@@ -89,7 +92,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         when (_screenState.value) {
             ScreenState.Face -> { /* 表盘不响应返回键 */ }
             ScreenState.Apps -> _screenState.value = ScreenState.Face
-            ScreenState.App -> _screenState.value = ScreenState.Apps
+            ScreenState.App -> {
+                // 动画未完成，取消启动
+                launchJob?.cancel()
+                launchJob = null
+                launchingExternalApp = false
+                _screenState.value = ScreenState.Apps
+            }
             ScreenState.Settings -> _screenState.value = ScreenState.Apps
             ScreenState.Stack -> _screenState.value = ScreenState.Face
             ScreenState.Notifications -> _screenState.value = ScreenState.Face
