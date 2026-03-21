@@ -82,21 +82,6 @@ fun LauncherSettingsSheet(
                 SettingOption("列表布局", "按字母排序的线性列表", currentLayout == LayoutMode.List, { onLayoutChange(LayoutMode.List) }, s)
             }
 
-            // 列表图标大小
-            if (currentLayout == LayoutMode.List) {
-                item(key = "list_icon_size") {
-                    val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_icon_size" }, screenCenterY, screenHeightPx)
-                    StepperSetting("图标大小", "${listIconSize}dp", listIconSize, 32, 80, 4, onListIconSizeChange, s)
-                }
-            }
-            // 蜂窝列数
-            if (currentLayout == LayoutMode.Honeycomb) {
-                item(key = "honeycomb_cols") {
-                    val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_cols" }, screenCenterY, screenHeightPx)
-                    StepperSetting("窄行列数", "$honeycombCols (宽行 ${honeycombCols + 1})", honeycombCols, 3, 6, 1, onHoneycombColsChange, s)
-                }
-            }
-
             item(key = "h_anim") { ScaledSectionHeader("动画效果", listState, "h_anim", screenCenterY, screenHeightPx) }
             item(key = "blur") {
                 val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "blur" }, screenCenterY, screenHeightPx)

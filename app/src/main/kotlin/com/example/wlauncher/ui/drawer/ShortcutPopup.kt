@@ -2,19 +2,17 @@ package com.example.wlauncher.ui.drawer
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,21 +25,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wlauncher.data.model.AppInfo
-
-import android.graphics.RenderEffect
-import android.graphics.Shader
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.delay
 
 /**
- * 长按菜单覆盖层 — 直接覆盖在 drawer 之上，背景压暗（模糊由外层 DrawerWithShortcut 处理）
- * 图标原位放大，菜单在图标上方弹出
+ * 长按菜单覆盖层 — 背景压暗（API31+ 模糊），图标+菜单居中弹出
+ * 有入场和退场动画
  */
 @Composable
 fun AppShortcutOverlay(
@@ -50,64 +46,92 @@ fun AppShortcutOverlay(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val useBlur = blurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+    // 动画状态：true = 显示中，false = 退出中
+    var showing by remember { mutableStateOf(false) }
+    var dismissing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        showing = true
+    }
+
+    // 退出时先播放动画再调用 onDismiss
+    fun animateDismiss() {
+        dismissing = true
+        showing = false
+    }
+
+    LaunchedEffect(dismissing) {
+        if (dismissing) {
+            delay(250) // 等退出动画完成
+            onDismiss()
+        }
+    }
+
+    val animAlpha by animateFloatAsState(
+        targetValue = if (showing && !dismissing) 1f else 0f,
+        animationSpec = tween(200),
+        label = "overlay_alpha"
+    )
+    val animScale by animateFloatAsState(
+        targetValue = if (showing && !dismissing) 1f else 0.8f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 600f),
+        label = "overlay_scale"
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.6f))
-            .clickable(indication = null, interactionSource = null) { onDismiss() },
+            .graphicsLayer { alpha = animAlpha }
+            .background(Color.Black.copy(alpha = 0.7f))
+            .clickable(indication = null, interactionSource = null) { animateDismiss() },
         contentAlignment = Alignment.Center
     ) {
-        AnimatedVisibility(
-            visible = true,
-            enter = fadeIn() + scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f)),
-            exit = fadeOut() + scaleOut(targetScale = 0.85f)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable(indication = null, interactionSource = null) {}
-            ) {
-                // 菜单（图标上方）
-                Column(
-                    modifier = Modifier
-                        .width(200.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF2C2C2E))
-                ) {
-                    ShortcutMenuItem("应用信息") {
-                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                            data = Uri.parse("package:${app.packageName}")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        })
-                        onDismiss()
-                    }
-                    Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0xFF48484A)))
-                    ShortcutMenuItem("卸载", Color(0xFFFF453A)) {
-                        context.startActivity(Intent(Intent.ACTION_DELETE).apply {
-                            data = Uri.parse("package:${app.packageName}")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        })
-                        onDismiss()
-                    }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = animScale
+                    scaleY = animScale
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 放大的图标
-                Image(
-                    bitmap = app.cachedIcon,
-                    contentDescription = null,
-                    modifier = Modifier.size(88.dp).clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    app.label,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.W600
-                )
+                .clickable(indication = null, interactionSource = null) { /* 阻止穿透 */ }
+        ) {
+            // 菜单
+            Column(
+                modifier = Modifier
+                    .width(200.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF2C2C2E))
+            ) {
+                ShortcutMenuItem("应用信息") {
+                    context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:${app.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+                    onDismiss()
+                }
+                Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0xFF48484A)))
+                ShortcutMenuItem("卸载", Color(0xFFFF453A)) {
+                    context.startActivity(Intent(Intent.ACTION_DELETE).apply {
+                        data = Uri.parse("package:${app.packageName}")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    })
+                    onDismiss()
+                }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 应用图标
+            Image(
+                bitmap = app.cachedIcon,
+                contentDescription = null,
+                modifier = Modifier.size(88.dp).clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(app.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W600)
         }
     }
 }
