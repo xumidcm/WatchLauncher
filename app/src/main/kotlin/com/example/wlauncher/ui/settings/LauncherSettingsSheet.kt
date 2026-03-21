@@ -35,6 +35,10 @@ fun LauncherSettingsSheet(
     honeycombCols: Int = 4,
     iconPackName: String? = null,
     iconPacks: List<Pair<String?, String>> = emptyList(),
+    showSteps: Boolean = true,
+    stepGoal: Int = 10000,
+    showNotification: Boolean = true,
+    showControlCenter: Boolean = true,
     onLayoutChange: (LayoutMode) -> Unit,
     onBlurToggle: (Boolean) -> Unit,
     onLowResToggle: (Boolean) -> Unit = {},
@@ -43,6 +47,10 @@ fun LauncherSettingsSheet(
     onListIconSizeChange: (Int) -> Unit = {},
     onHoneycombColsChange: (Int) -> Unit = {},
     onIconPackChange: (String?) -> Unit = {},
+    onShowStepsChange: (Boolean) -> Unit = {},
+    onStepGoalChange: (Int) -> Unit = {},
+    onShowNotificationChange: (Boolean) -> Unit = {},
+    onShowControlCenterChange: (Boolean) -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -121,6 +129,27 @@ fun LauncherSettingsSheet(
             item(key = "lowres") {
                 val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "lowres" }, screenCenterY, screenHeightPx)
                 SettingToggle("低分辨率图标", "降低图标质量以提升滚动流畅度", lowResIcons, onLowResToggle, s)
+            }
+
+            // 功能开关
+            item(key = "h_features") { ScaledSectionHeader("功能", listState, "h_features", screenCenterY, screenHeightPx) }
+            item(key = "show_steps") {
+                val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "show_steps" }, screenCenterY, screenHeightPx)
+                SettingToggle("表盘步数", "在表盘显示步数进度环", showSteps, onShowStepsChange, s)
+            }
+            if (showSteps) {
+                item(key = "step_goal") {
+                    val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "step_goal" }, screenCenterY, screenHeightPx)
+                    StepperSetting("步数目标", "${stepGoal} 步", stepGoal, 1000, 30000, 1000, onStepGoalChange, s)
+                }
+            }
+            item(key = "show_notif") {
+                val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "show_notif" }, screenCenterY, screenHeightPx)
+                SettingToggle("通知中心", "下滑显示通知列表", showNotification, onShowNotificationChange, s)
+            }
+            item(key = "show_cc") {
+                val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "show_cc" }, screenCenterY, screenHeightPx)
+                SettingToggle("控制中心", "左滑显示快捷开关", showControlCenter, onShowControlCenterChange, s)
             }
 
             // 图标包

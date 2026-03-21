@@ -11,6 +11,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.data.repository.AppRepository
+import com.example.wlauncher.service.StepCounterManager
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
 import kotlinx.coroutines.Job
@@ -32,6 +33,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
         val KEY_LIST_ICON_SIZE = intPreferencesKey("list_icon_size")
         val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
+        val KEY_STEP_GOAL = intPreferencesKey("step_goal")
+        val KEY_SHOW_STEPS = booleanPreferencesKey("show_steps")
+        val KEY_SHOW_NOTIFICATION = booleanPreferencesKey("show_notification")
+        val KEY_SHOW_CONTROL_CENTER = booleanPreferencesKey("show_control_center")
+        val KEY_FIRST_RUN = booleanPreferencesKey("first_run")
     }
 
     private val store = application.dataStore
@@ -68,6 +74,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _splashIcon = MutableStateFlow(true)
     val splashIcon: StateFlow<Boolean> = _splashIcon.asStateFlow()
+
+    private val _stepGoal = MutableStateFlow(10000)
+    val stepGoal: StateFlow<Int> = _stepGoal.asStateFlow()
+
+    private val _showSteps = MutableStateFlow(true)
+    val showSteps: StateFlow<Boolean> = _showSteps.asStateFlow()
+
+    private val _showNotification = MutableStateFlow(true)
+    val showNotification: StateFlow<Boolean> = _showNotification.asStateFlow()
+
+    private val _showControlCenter = MutableStateFlow(true)
+    val showControlCenter: StateFlow<Boolean> = _showControlCenter.asStateFlow()
+
+    private val _firstRun = MutableStateFlow(true)
+    val firstRun: StateFlow<Boolean> = _firstRun.asStateFlow()
 
     private val _appOpenOrigin = MutableStateFlow(Offset(0.5f, 0.5f))
     val appOpenOrigin: StateFlow<Offset> = _appOpenOrigin.asStateFlow()
@@ -107,8 +128,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 prefs[KEY_LIST_ICON_SIZE]?.let { _listIconSize.value = it.coerceIn(32, 80) }
                 prefs[KEY_HONEYCOMB_COLS]?.let { _honeycombCols.value = it.coerceIn(3, 6) }
+                prefs[KEY_STEP_GOAL]?.let {
+                    _stepGoal.value = it.coerceIn(1000, 50000)
+                    StepCounterManager.setGoal(it)
+                }
+                prefs[KEY_SHOW_STEPS]?.let { _showSteps.value = it }
+                prefs[KEY_SHOW_NOTIFICATION]?.let { _showNotification.value = it }
+                prefs[KEY_SHOW_CONTROL_CENTER]?.let { _showControlCenter.value = it }
+                prefs[KEY_FIRST_RUN]?.let { _firstRun.value = it }
             }
         }
+
+        // 初始化步数管理器
+        StepCounterManager.initialize(application)
     }
 
     fun setState(state: ScreenState) {
@@ -219,6 +251,32 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_COLS] = _honeycombCols.value } }
     }
 
+    fun setStepGoal(goal: Int) {
+        _stepGoal.value = goal.coerceIn(1000, 50000)
+        StepCounterManager.setGoal(_stepGoal.value)
+        viewModelScope.launch { store.edit { it[KEY_STEP_GOAL] = _stepGoal.value } }
+    }
+
+    fun setShowSteps(show: Boolean) {
+        _showSteps.value = show
+        viewModelScope.launch { store.edit { it[KEY_SHOW_STEPS] = show } }
+    }
+
+    fun setShowNotification(show: Boolean) {
+        _showNotification.value = show
+        viewModelScope.launch { store.edit { it[KEY_SHOW_NOTIFICATION] = show } }
+    }
+
+    fun setShowControlCenter(show: Boolean) {
+        _showControlCenter.value = show
+        viewModelScope.launch { store.edit { it[KEY_SHOW_CONTROL_CENTER] = show } }
+    }
+
+    fun setFirstRun(first: Boolean) {
+        _firstRun.value = first
+        viewModelScope.launch { store.edit { it[KEY_FIRST_RUN] = first } }
+    }
+
     fun swapApps(fromIndex: Int, toIndex: Int) {
         val current = _apps.value.toMutableList()
         if (fromIndex in current.indices && toIndex in current.indices) {
@@ -235,5 +293,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     override fun onCleared() {
         super.onCleared()
         appRepository.destroy()
+        StepCounterManager.release()
     }
 }
