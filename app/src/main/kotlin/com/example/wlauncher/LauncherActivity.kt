@@ -10,13 +10,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.wlauncher.ui.controlcenter.ControlCenterLayer
 import com.example.wlauncher.ui.drawer.HoneycombScreen
@@ -26,6 +23,7 @@ import com.example.wlauncher.ui.navigation.GestureHost
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
 import com.example.wlauncher.ui.notification.NotificationLayer
+import com.example.wlauncher.ui.settings.LauncherSettingsSheet
 import com.example.wlauncher.ui.smartstack.SmartStackLayer
 import com.example.wlauncher.ui.anim.*
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
@@ -79,12 +77,6 @@ class LauncherActivity : ComponentActivity() {
             vm.onReturnToLauncher()
         }
     }
-
-    override fun onPause() {
-        super.onPause()
-        @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
-    }
 }
 
 @Composable
@@ -95,14 +87,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val apps by vm.apps.collectAsState()
     val appOpenOrigin by vm.appOpenOrigin.collectAsState()
     val lowResIcons by vm.lowResIcons.collectAsState()
-
-    // 记住上一个状态，用于判断是否从 App 返回
-    var prevState by remember { mutableStateOf(screenState) }
-    val isReturningFromApp = prevState == ScreenState.App && screenState == ScreenState.Apps
-    LaunchedEffect(screenState) { prevState = screenState }
-
-    // 只在打开/返回应用时使用图标原点，其他状态固定中心
-    val useOrigin = screenState == ScreenState.App || isReturningFromApp
 
     BoxWithConstraints(
         modifier = Modifier
@@ -138,7 +122,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         targetValues = appListLayerValues(screenState),
                         screenHeight = screenHeightPx,
                         blurEnabled = blurEnabled,
-                        origin = if (useOrigin) appOpenOrigin else null
+                        origin = appOpenOrigin
                     )
             ) {
                 when (layoutMode) {
@@ -146,38 +130,15 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         apps = apps,
                         onAppClick = { appInfo, origin ->
                             vm.openApp(appInfo, origin)
-                        }
+                        },
+                        onSettingsClick = { vm.openSettings() }
                     )
                     LayoutMode.List -> ListDrawerScreen(
                         apps = apps,
-                        onAppClick = { appInfo, origin ->
-                            vm.openApp(appInfo, origin)
-                        }
-                    )
-                }
-            }
-
-            // App Launch Splash — 居中显示应用图标（类似 Android 12 启动遮罩）
-            val currentApp by vm.currentApp.collectAsState()
-            if (screenState == ScreenState.App && currentApp != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black)
-                        .scaleBlurAlpha(
-                            targetValues = appViewLayerValues(screenState),
-                            screenHeight = screenHeightPx,
-                            blurEnabled = blurEnabled
-                        ),
-                    contentAlignment = androidx.compose.ui.Alignment.Center
-                ) {
-                    androidx.compose.foundation.Image(
-                        bitmap = currentApp!!.cachedIcon,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(96.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        onAppClick = { appInfo ->
+                            vm.openApp(appInfo)
+                        },
+                        onSettingsClick = { vm.openSettings() }
                     )
                 }
             }
@@ -219,6 +180,19 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) {
                 ControlCenterLayer()
+            }
+
+            // Layer 6: Settings
+            if (screenState == ScreenState.Settings) {
+                LauncherSettingsSheet(
+                    currentLayout = layoutMode,
+                    blurEnabled = blurEnabled,
+                    lowResIcons = lowResIcons,
+                    onLayoutChange = { vm.setLayoutMode(it) },
+                    onBlurToggle = { vm.setBlurEnabled(it) },
+                    onLowResToggle = { vm.setLowResIcons(it) },
+                    onDismiss = { vm.setState(ScreenState.Apps) }
+                )
             }
         }
     }
