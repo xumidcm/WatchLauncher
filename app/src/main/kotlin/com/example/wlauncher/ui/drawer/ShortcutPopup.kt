@@ -2,16 +2,19 @@ package com.example.wlauncher.ui.drawer
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.RenderEffect
-import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,87 +26,53 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asComposeRenderEffect
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import com.example.wlauncher.data.model.AppInfo
-import kotlinx.coroutines.delay
+
+import android.graphics.RenderEffect
+import android.graphics.Shader
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
- * 长按菜单弹窗 — 在图标原位显示，背景模糊压暗，图标放大，菜单在图标上方或下方弹出
+ * 长按菜单覆盖层 — 直接覆盖在 drawer 之上，背景压暗（模糊由外层 DrawerWithShortcut 处理）
+ * 图标原位放大，菜单在图标上方弹出
  */
 @Composable
-fun AppShortcutPopup(
+fun AppShortcutOverlay(
     app: AppInfo,
+    blurEnabled: Boolean = true,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val useBlur = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    // 入场动画
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        delay(16)
-        visible = true
-    }
-    val animScale by animateFloatAsState(
-        targetValue = if (visible) 1f else 0.7f,
-        animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f),
-        label = "popup_scale"
-    )
-    val animAlpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = spring(stiffness = 800f),
-        label = "popup_alpha"
-    )
-
-    Popup(
-        alignment = Alignment.Center,
-        onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f))
+            .clickable(indication = null, interactionSource = null) { onDismiss() },
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { alpha = animAlpha }
-                .let { mod ->
-                    if (useBlur) {
-                        mod.graphicsLayer {
-                            renderEffect = RenderEffect.createBlurEffect(
-                                25f, 25f, Shader.TileMode.CLAMP
-                            ).asComposeRenderEffect()
-                        }
-                    } else mod
-                }
-                .background(Color.Black.copy(alpha = if (useBlur) 0.5f else 0.85f))
-                .clickable(indication = null, interactionSource = null) { onDismiss() },
-            contentAlignment = Alignment.Center
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn() + scaleIn(initialScale = 0.85f, animationSpec = spring(dampingRatio = 0.65f, stiffness = 500f)),
+            exit = fadeOut() + scaleOut(targetScale = 0.85f)
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .graphicsLayer {
-                        scaleX = animScale
-                        scaleY = animScale
-                    }
-                    .clickable(indication = null, interactionSource = null) {}
+                modifier = Modifier.clickable(indication = null, interactionSource = null) {}
             ) {
                 // 菜单（图标上方）
                 Column(
                     modifier = Modifier
-                        .width(180.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color(0xFF2A2A2A))
+                        .width(200.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF2C2C2E))
                 ) {
                     ShortcutMenuItem("应用信息") {
                         context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
@@ -112,7 +81,7 @@ fun AppShortcutPopup(
                         })
                         onDismiss()
                     }
-                    Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0xFF444444)))
+                    Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color(0xFF48484A)))
                     ShortcutMenuItem("卸载", Color(0xFFFF453A)) {
                         context.startActivity(Intent(Intent.ACTION_DELETE).apply {
                             data = Uri.parse("package:${app.packageName}")
@@ -122,17 +91,22 @@ fun AppShortcutPopup(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // 放大的应用图标
+                // 放大的图标
                 Image(
                     bitmap = app.cachedIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(90.dp).clip(CircleShape),
+                    modifier = Modifier.size(88.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(app.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.W600)
+                Text(
+                    app.label,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.W600
+                )
             }
         }
     }
@@ -140,16 +114,14 @@ fun AppShortcutPopup(
 
 @Composable
 private fun ShortcutMenuItem(text: String, color: Color = Color.White, onClick: () -> Unit) {
-    Text(
-        text = text,
-        color = color,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.W500,
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp)
-    )
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Text(text, color = color, fontSize = 15.sp, fontWeight = FontWeight.W500)
+    }
 }
 
 fun vibrateHaptic(context: Context) {

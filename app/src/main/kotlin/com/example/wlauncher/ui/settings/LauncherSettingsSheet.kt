@@ -151,7 +151,34 @@ fun LauncherSettingsSheet(
                 }
             }
 
-            item(key = "h_about") { ScaledSectionHeader("关于", listState, "h_about", screenCenterY, screenHeightPx) }
+            item(key = "h_about") { ScaledSectionHeader("调试", listState, "h_about", screenCenterY, screenHeightPx) }
+            item(key = "export_log") {
+                val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "export_log" }, screenCenterY, screenHeightPx)
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                Box(
+                    modifier = Modifier.fillMaxWidth().graphicsLayer { scaleX = s; scaleY = s; alpha = s }
+                        .clip(RoundedCornerShape(16.dp)).background(WatchColors.SurfaceGlass)
+                        .clickable {
+                            try {
+                                val log = Runtime.getRuntime().exec("logcat -d -t 500").inputStream.bufferedReader().readText()
+                                val file = java.io.File(ctx.cacheDir, "wlauncher_log.txt")
+                                file.writeText(log)
+                                val uri = androidx.core.content.FileProvider.getUriForFile(
+                                    ctx, "${ctx.packageName}.fileprovider", file
+                                )
+                                ctx.startActivity(android.content.Intent.createChooser(
+                                    android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(android.content.Intent.EXTRA_STREAM, uri)
+                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }, "导出日志"
+                                ))
+                            } catch (_: Exception) {}
+                        }
+                        .padding(14.dp),
+                    contentAlignment = Alignment.Center
+                ) { Text("导出 Logcat 日志", fontSize = 14.sp, color = WatchColors.ActiveCyan) }
+            }
             item(key = "about") {
                 val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "about" }, screenCenterY, screenHeightPx)
                 Row(
@@ -278,6 +305,7 @@ private fun SettingToggle(
     }
 }
 
+@Composable
 @Composable
 private fun StepperSetting(
     label: String,

@@ -42,6 +42,7 @@ fun ListDrawerScreen(
     iconSize: Dp = 48.dp,
     onAppClick: (AppInfo, Offset) -> Unit,
     onLongClick: (AppInfo) -> Unit = {},
+    onScrollToTop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -138,9 +139,9 @@ fun ListDrawerScreen(
         )
     }
 
-    // App Shortcuts 弹窗
+    // App Shortcuts 覆盖层
     longPressedApp?.let { app ->
-        AppShortcutPopup(app = app, onDismiss = { longPressedApp = null })
+        AppShortcutOverlay(app = app, blurEnabled = blurEnabled, onDismiss = { longPressedApp = null })
     }
 }
 

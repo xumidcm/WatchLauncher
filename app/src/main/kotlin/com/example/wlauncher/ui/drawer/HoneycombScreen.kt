@@ -40,6 +40,7 @@ fun HoneycombScreen(
     narrowCols: Int = 4,
     onAppClick: (AppInfo, Offset) -> Unit,
     onLongClick: (AppInfo) -> Unit = {},
+    onScrollToTop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -95,6 +96,11 @@ fun HoneycombScreen(
                         onDragEnd = {
                             val velocity = velocityTracker.calculateVelocity()
                             val current = scrollOffset.value
+                            // 在顶部继续上滑 → 返回表盘
+                            if (current >= maxScrollY - cellSize * 0.5f && velocity.y > 800f) {
+                                onScrollToTop()
+                                return@detectDragGestures
+                            }
                             if (current < -maxScrollY || current > maxScrollY) {
                                 scope.launch {
                                     scrollOffset.animateTo(
@@ -199,8 +205,8 @@ fun HoneycombScreen(
         )
     }
 
-    // App Shortcuts 弹窗
+    // App Shortcuts 覆盖层（直接叠在 drawer 上，背景就是被压暗的图标网格）
     longPressedApp?.let { app ->
-        AppShortcutPopup(app = app, onDismiss = { longPressedApp = null })
+        AppShortcutOverlay(app = app, blurEnabled = blurEnabled, onDismiss = { longPressedApp = null })
     }
 }

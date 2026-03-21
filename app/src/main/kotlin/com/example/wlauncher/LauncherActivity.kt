@@ -156,13 +156,15 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         apps = apps,
                         blurEnabled = blurEnabled,
                         narrowCols = honeycombCols,
-                        onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) }
+                        onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
+                        onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                     LayoutMode.List -> ListDrawerScreen(
                         apps = apps,
                         blurEnabled = blurEnabled,
                         iconSize = listIconSize.dp,
-                        onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) }
+                        onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
+                        onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                 }
             }
