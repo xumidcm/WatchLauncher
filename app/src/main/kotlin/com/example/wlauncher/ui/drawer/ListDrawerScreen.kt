@@ -2,6 +2,7 @@ package com.example.wlauncher.ui.drawer
 
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.os.Build
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -70,7 +71,7 @@ fun ListDrawerScreen(
                                 scaleX = itemScale
                                 scaleY = itemScale
                                 alpha = itemScale.coerceIn(0.3f, 1f)
-                                if (edgeBlur > 0.5f) {
+                                if (edgeBlur > 0.5f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                     renderEffect = RenderEffect.createBlurEffect(
                                         edgeBlur, edgeBlur, Shader.TileMode.CLAMP
                                     ).asComposeRenderEffect()
@@ -108,7 +109,7 @@ fun ListDrawerScreen(
                                 scaleX = itemScale
                                 scaleY = itemScale
                                 alpha = itemScale.coerceIn(0.3f, 1f)
-                                if (edgeBlur > 0.5f) {
+                                if (edgeBlur > 0.5f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                     renderEffect = RenderEffect.createBlurEffect(
                                         edgeBlur, edgeBlur, Shader.TileMode.CLAMP
                                     ).asComposeRenderEffect()

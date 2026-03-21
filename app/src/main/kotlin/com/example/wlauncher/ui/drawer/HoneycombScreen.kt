@@ -2,6 +2,7 @@ package com.example.wlauncher.ui.drawer
 
 import android.graphics.RenderEffect
 import android.graphics.Shader
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
@@ -143,17 +144,19 @@ fun HoneycombScreen(
                             scaleY = s
                             this.alpha = s.coerceIn(0.2f, 1f)
 
-                            // 边缘模糊
-                            val edgeDist = minOf(posY, screenHeightPx - posY)
-                            val blurZone = screenHeightPx * 0.15f
-                            if (edgeDist < blurZone && edgeDist > 0) {
-                                val blurAmount = ((1f - edgeDist / blurZone) * 12f).coerceIn(0f, 12f)
-                                if (blurAmount > 0.5f) {
-                                    renderEffect = RenderEffect.createBlurEffect(
-                                        blurAmount * density.density,
-                                        blurAmount * density.density,
-                                        Shader.TileMode.CLAMP
-                                    ).asComposeRenderEffect()
+                            // 边缘模糊 (API 31+)
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                val edgeDist = minOf(posY, screenHeightPx - posY)
+                                val blurZone = screenHeightPx * 0.15f
+                                if (edgeDist < blurZone && edgeDist > 0) {
+                                    val blurAmount = ((1f - edgeDist / blurZone) * 12f).coerceIn(0f, 12f)
+                                    if (blurAmount > 0.5f) {
+                                        renderEffect = RenderEffect.createBlurEffect(
+                                            blurAmount * density.density,
+                                            blurAmount * density.density,
+                                            Shader.TileMode.CLAMP
+                                        ).asComposeRenderEffect()
+                                    }
                                 }
                             }
                         }
