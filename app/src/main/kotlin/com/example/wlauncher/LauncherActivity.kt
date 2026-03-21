@@ -86,6 +86,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val blurEnabled by vm.blurEnabled.collectAsState()
     val apps by vm.apps.collectAsState()
     val appOpenOrigin by vm.appOpenOrigin.collectAsState()
+    val lowResIcons by vm.lowResIcons.collectAsState()
 
     BoxWithConstraints(
         modifier = Modifier
@@ -121,7 +122,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         targetValues = appListLayerValues(screenState),
                         screenHeight = screenHeightPx,
                         blurEnabled = blurEnabled,
-                        origin = if (screenState == ScreenState.App) appOpenOrigin else null
+                        origin = appOpenOrigin
                     )
             ) {
                 when (layoutMode) {
@@ -186,8 +187,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
                 LauncherSettingsSheet(
                     currentLayout = layoutMode,
                     blurEnabled = blurEnabled,
+                    lowResIcons = lowResIcons,
                     onLayoutChange = { vm.setLayoutMode(it) },
                     onBlurToggle = { vm.setBlurEnabled(it) },
+                    onLowResToggle = { vm.setLowResIcons(it) },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )
             }

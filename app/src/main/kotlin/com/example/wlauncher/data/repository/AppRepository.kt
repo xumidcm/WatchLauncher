@@ -36,7 +36,7 @@ class AppRepository(private val context: Context) {
         context.registerReceiver(packageReceiver, filter)
     }
 
-    fun refresh() {
+    fun refresh(iconSize: Int = 128) {
         val pm = context.packageManager
         val mainIntent = Intent(Intent.ACTION_MAIN).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
@@ -53,7 +53,7 @@ class AppRepository(private val context: Context) {
                     packageName = ri.activityInfo.packageName,
                     activityName = ri.activityInfo.name,
                     icon = drawable,
-                    cachedIcon = drawable.toBitmap(128, 128).asImageBitmap()
+                    cachedIcon = drawable.toBitmap(iconSize, iconSize).asImageBitmap()
                 )
             }
             .sortedBy { it.label.lowercase() }

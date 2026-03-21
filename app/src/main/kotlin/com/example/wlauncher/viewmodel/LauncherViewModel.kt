@@ -31,6 +31,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _blurEnabled = MutableStateFlow(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
     val blurEnabled: StateFlow<Boolean> = _blurEnabled.asStateFlow()
 
+    private val _lowResIcons = MutableStateFlow(false)
+    val lowResIcons: StateFlow<Boolean> = _lowResIcons.asStateFlow()
+
     private val _appOpenOrigin = MutableStateFlow(Offset(0.5f, 0.5f))
     val appOpenOrigin: StateFlow<Offset> = _appOpenOrigin.asStateFlow()
 
@@ -81,6 +84,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         when (_screenState.value) {
             ScreenState.Face -> _screenState.value = ScreenState.Apps
             ScreenState.Apps -> _screenState.value = ScreenState.Face
+            ScreenState.App -> {
+                // 动画中按主页键，取消启动，回到应用列表
+                launchJob?.cancel()
+                launchJob = null
+                launchingExternalApp = false
+                _screenState.value = ScreenState.Apps
+            }
             else -> _screenState.value = ScreenState.Face
         }
     }
@@ -120,6 +130,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setBlurEnabled(enabled: Boolean) {
         _blurEnabled.value = enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    }
+
+    fun setLowResIcons(enabled: Boolean) {
+        _lowResIcons.value = enabled
+        appRepository.refresh(if (enabled) 64 else 128)
     }
 
     fun openSettings() {

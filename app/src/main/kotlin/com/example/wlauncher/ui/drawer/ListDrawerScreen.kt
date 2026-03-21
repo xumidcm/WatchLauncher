@@ -1,5 +1,7 @@
 package com.example.wlauncher.ui.drawer
 
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -57,7 +60,9 @@ fun ListDrawerScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item(key = "__settings__") {
-                    val itemScale = computeItemScale(listState, 0, screenCenterY, screenHeightPx, density)
+                    val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == 0 }
+                    val itemScale = computeItemScale(itemInfo, screenCenterY, screenHeightPx)
+                    val edgeBlur = computeEdgeBlur(itemInfo, screenHeightPx, density)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -65,6 +70,11 @@ fun ListDrawerScreen(
                                 scaleX = itemScale
                                 scaleY = itemScale
                                 alpha = itemScale.coerceIn(0.3f, 1f)
+                                if (edgeBlur > 0.5f) {
+                                    renderEffect = RenderEffect.createBlurEffect(
+                                        edgeBlur, edgeBlur, Shader.TileMode.CLAMP
+                                    ).asComposeRenderEffect()
+                                }
                             }
                             .clickable { onSettingsClick() }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -87,8 +97,10 @@ fun ListDrawerScreen(
                 }
 
                 items(apps, key = { it.packageName }) { app ->
-                    val itemIndex = apps.indexOf(app) + 1 // +1 for settings item
-                    val itemScale = computeItemScale(listState, itemIndex, screenCenterY, screenHeightPx, density)
+                    val itemIndex = apps.indexOf(app) + 1
+                    val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == itemIndex }
+                    val itemScale = computeItemScale(itemInfo, screenCenterY, screenHeightPx)
+                    val edgeBlur = computeEdgeBlur(itemInfo, screenHeightPx, density)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -96,6 +108,11 @@ fun ListDrawerScreen(
                                 scaleX = itemScale
                                 scaleY = itemScale
                                 alpha = itemScale.coerceIn(0.3f, 1f)
+                                if (edgeBlur > 0.5f) {
+                                    renderEffect = RenderEffect.createBlurEffect(
+                                        edgeBlur, edgeBlur, Shader.TileMode.CLAMP
+                                    ).asComposeRenderEffect()
+                                }
                             }
                             .clickable { onAppClick(app) }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -144,17 +161,27 @@ fun ListDrawerScreen(
  * 根据 item 在屏幕上的位置计算缩放比例（靠近中心=1.0，靠近边缘缩小）
  */
 private fun computeItemScale(
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    index: Int,
+    itemInfo: androidx.compose.foundation.lazy.LazyListItemInfo?,
     screenCenterY: Float,
-    screenHeight: Float,
-    density: androidx.compose.ui.unit.Density
+    screenHeight: Float
 ): Float {
-    val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
-        ?: return 0.85f
+    if (itemInfo == null) return 0.85f
     val itemCenterY = itemInfo.offset + itemInfo.size / 2f
     val dist = abs(itemCenterY - screenCenterY)
     val maxDist = screenHeight / 2f
     val t = (dist / maxDist).coerceIn(0f, 1f)
-    return 1f - 0.2f * t // 1.0 at center, 0.8 at edge
+    return 1f - 0.2f * t
+}
+
+private fun computeEdgeBlur(
+    itemInfo: androidx.compose.foundation.lazy.LazyListItemInfo?,
+    screenHeight: Float,
+    density: androidx.compose.ui.unit.Density
+): Float {
+    if (itemInfo == null) return 0f
+    val itemCenterY = itemInfo.offset + itemInfo.size / 2f
+    val edgeDist = minOf(itemCenterY, screenHeight - itemCenterY)
+    val blurZone = screenHeight * 0.15f
+    if (edgeDist >= blurZone || edgeDist <= 0) return 0f
+    return ((1f - edgeDist / blurZone) * 10f * density.density).coerceIn(0f, 10f * density.density)
 }

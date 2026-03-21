@@ -28,8 +28,10 @@ import com.example.wlauncher.ui.theme.WatchColors
 fun LauncherSettingsSheet(
     currentLayout: LayoutMode,
     blurEnabled: Boolean,
+    lowResIcons: Boolean = false,
     onLayoutChange: (LayoutMode) -> Unit,
     onBlurToggle: (Boolean) -> Unit,
+    onLowResToggle: (Boolean) -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -77,6 +79,17 @@ fun LauncherSettingsSheet(
                 description = "需要 Android 12+ (API 31)",
                 isOn = blurEnabled,
                 onToggle = onBlurToggle
+            )
+        }
+
+        // 性能设置
+        item { SectionHeader("性能") }
+        item {
+            SettingToggle(
+                label = "低分辨率图标",
+                description = "降低图标质量以提升滚动流畅度",
+                isOn = lowResIcons,
+                onToggle = onLowResToggle
             )
         }
 

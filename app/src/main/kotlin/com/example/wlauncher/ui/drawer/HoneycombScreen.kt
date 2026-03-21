@@ -1,5 +1,7 @@
 package com.example.wlauncher.ui.drawer
 
+import android.graphics.RenderEffect
+import android.graphics.Shader
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.background
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -24,17 +25,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.ui.theme.WatchColors
 import com.example.wlauncher.util.fisheyeScale
 import com.example.wlauncher.util.generateHoneycombRows
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -48,31 +50,27 @@ fun HoneycombScreen(
         val density = LocalDensity.current
         val screenWidthPx = with(density) { maxWidth.toPx() }
         val screenHeightPx = with(density) { maxHeight.toPx() }
-        val screenCenter = Offset(screenWidthPx / 2f, screenHeightPx / 2f)
+        val screenCenterX = screenWidthPx / 2f
+        val screenCenterY = screenHeightPx / 2f
         val screenRadius = minOf(screenWidthPx, screenHeightPx) / 2f
 
-        // 图标尺寸和列数（固定 4-5 交替，匹配 Apple Watch 布局）
         val iconSizeDp = 80.dp
         val cellSize = with(density) { iconSizeDp.toPx() }
+        val iconSizePx = cellSize
         val narrowCols = 4
 
-        // 行列式蜂窝布局
         val positions = remember(apps.size, narrowCols, cellSize) {
             generateHoneycombRows(apps.size, narrowCols, cellSize)
         }
 
-        // Y 轴滚动
-        var panOffsetY by remember { mutableFloatStateOf(0f) }
+        // 用 Animatable 驱动滚动，避免 state 触发重组
+        val scrollOffset = remember { Animatable(0f) }
         val scope = rememberCoroutineScope()
-        val animY = remember { Animatable(0f) }
 
-        // 滚动边界
-        val maxScrollY = remember(positions) {
+        val maxScrollY = remember(positions, cellSize) {
             if (positions.isEmpty()) 0f
-            else positions.maxOf { kotlin.math.abs(it.y) } + cellSize
+            else positions.maxOf { abs(it.y) } + cellSize
         }
-
-        fun clampY(y: Float): Float = y.coerceIn(-maxScrollY, maxScrollY)
 
         Box(
             modifier = Modifier
@@ -81,77 +79,86 @@ fun HoneycombScreen(
                     val velocityTracker = VelocityTracker()
                     detectDragGestures(
                         onDragStart = {
-                            scope.launch { animY.stop() }
+                            scope.launch { scrollOffset.stop() }
                             velocityTracker.resetTracking()
                         },
                         onDrag = { change, dragAmount ->
                             change.consume()
-                            velocityTracker.addPosition(
-                                change.uptimeMillis,
-                                change.position
-                            )
-                            panOffsetY = clampY(panOffsetY + dragAmount.y)
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            val newVal = (scrollOffset.value + dragAmount.y)
+                                .coerceIn(-maxScrollY, maxScrollY)
+                            scope.launch { scrollOffset.snapTo(newVal) }
                         },
                         onDragEnd = {
                             val velocity = velocityTracker.calculateVelocity()
                             scope.launch {
-                                animY.snapTo(panOffsetY)
-                                animY.animateDecay(velocity.y, exponentialDecay())
+                                scrollOffset.animateDecay(velocity.y, exponentialDecay()) {
+                                    // clamp during decay
+                                    if (value < -maxScrollY || value > maxScrollY) {
+                                        scope.launch {
+                                            scrollOffset.snapTo(value.coerceIn(-maxScrollY, maxScrollY))
+                                        }
+                                    }
+                                }
                             }
                         }
                     )
                 }
         ) {
-            LaunchedEffect(Unit) {
-                snapshotFlow { animY.value }
-                    .collect { panOffsetY = clampY(it) }
-            }
-
-            val iconSizePx = with(density) { iconSizeDp.toPx() }
-
             apps.forEachIndexed { index, app ->
                 if (index >= positions.size) return@forEachIndexed
-
                 val gridPos = positions[index]
-                val screenPos = Offset(
-                    screenCenter.x + gridPos.x,
-                    screenCenter.y + gridPos.y + panOffsetY
-                )
 
-                // 视口裁剪
-                if (screenPos.y < -iconSizePx || screenPos.y > screenHeightPx + iconSizePx
-                ) return@forEachIndexed
+                // 用 key 确保 composable 稳定
+                key(app.packageName) {
+                    AppBubble(
+                        icon = app.cachedIcon,
+                        size = iconSizeDp,
+                        onClick = {
+                            val sy = scrollOffset.value
+                            val sx = screenCenterX + gridPos.x
+                            val syPos = screenCenterY + gridPos.y + sy
+                            onAppClick(app, Offset(sx / screenWidthPx, syPos / screenHeightPx))
+                        },
+                        modifier = Modifier.graphicsLayer {
+                            val sy = scrollOffset.value
+                            val posX = screenCenterX + gridPos.x
+                            val posY = screenCenterY + gridPos.y + sy
 
-                // 鱼眼：基于到屏幕中心的距离
-                val distFromCenter = Offset(
-                    screenPos.x - screenCenter.x,
-                    screenPos.y - screenCenter.y
-                ).getDistance()
-                val scale = fisheyeScale(distFromCenter, screenRadius * 1.8f, minScale = 0.55f)
+                            // 视口裁剪
+                            if (posY < -iconSizePx || posY > screenHeightPx + iconSizePx) {
+                                alpha = 0f
+                                return@graphicsLayer
+                            }
 
-                AppBubble(
-                    icon = app.cachedIcon,
-                    size = iconSizeDp,
-                    onClick = {
-                        val normalizedOrigin = Offset(
-                            screenPos.x / screenWidthPx,
-                            screenPos.y / screenHeightPx
-                        )
-                        onAppClick(app, normalizedOrigin)
-                    },
-                    modifier = Modifier
-                        .offset {
-                            IntOffset(
-                                (screenPos.x - iconSizePx / 2).roundToInt(),
-                                (screenPos.y - iconSizePx / 2).roundToInt()
-                            )
+                            translationX = posX - iconSizePx / 2
+                            translationY = posY - iconSizePx / 2
+
+                            // 鱼眼缩放
+                            val dx = posX - screenCenterX
+                            val dy = posY - screenCenterY
+                            val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                            val s = fisheyeScale(dist, screenRadius * 1.8f, minScale = 0.55f)
+                            scaleX = s
+                            scaleY = s
+                            this.alpha = s.coerceIn(0.2f, 1f)
+
+                            // 边缘模糊
+                            val edgeDist = minOf(posY, screenHeightPx - posY)
+                            val blurZone = screenHeightPx * 0.15f
+                            if (edgeDist < blurZone && edgeDist > 0) {
+                                val blurAmount = ((1f - edgeDist / blurZone) * 12f).coerceIn(0f, 12f)
+                                if (blurAmount > 0.5f) {
+                                    renderEffect = RenderEffect.createBlurEffect(
+                                        blurAmount * density.density,
+                                        blurAmount * density.density,
+                                        Shader.TileMode.CLAMP
+                                    ).asComposeRenderEffect()
+                                }
+                            }
                         }
-                        .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                            alpha = scale.coerceIn(0.2f, 1f)
-                        }
-                )
+                    )
+                }
             }
         }
 
