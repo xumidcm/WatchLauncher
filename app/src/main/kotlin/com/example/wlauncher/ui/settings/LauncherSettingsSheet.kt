@@ -31,11 +31,14 @@ fun LauncherSettingsSheet(
     lowResIcons: Boolean = false,
     splashIcon: Boolean = true,
     splashDelay: Int = 500,
+    iconPackName: String? = null,
+    iconPacks: List<Pair<String?, String>> = emptyList(), // (packageName?, label)
     onLayoutChange: (LayoutMode) -> Unit,
     onBlurToggle: (Boolean) -> Unit,
     onLowResToggle: (Boolean) -> Unit = {},
     onSplashToggle: (Boolean) -> Unit = {},
     onSplashDelayChange: (Int) -> Unit = {},
+    onIconPackChange: (String?) -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -114,6 +117,19 @@ fun LauncherSettingsSheet(
             item(key = "lowres") {
                 val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "lowres" }, screenCenterY, screenHeightPx)
                 SettingToggle("低分辨率图标", "降低图标质量以提升滚动流畅度", lowResIcons, onLowResToggle, s)
+            }
+
+            // 图标包
+            item(key = "h_iconpack") { ScaledSectionHeader("图标包", listState, "h_iconpack", screenCenterY, screenHeightPx) }
+            item(key = "iconpack_default") {
+                val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "iconpack_default" }, screenCenterY, screenHeightPx)
+                SettingOption("默认图标", "使用系统原生图标", iconPackName == null, { onIconPackChange(null) }, s)
+            }
+            for ((idx, pack) in iconPacks.withIndex()) {
+                item(key = "iconpack_$idx") {
+                    val s = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "iconpack_$idx" }, screenCenterY, screenHeightPx)
+                    SettingOption(pack.second, pack.first ?: "", iconPackName == pack.first, { onIconPackChange(pack.first) }, s)
+                }
             }
 
             item(key = "h_about") { ScaledSectionHeader("关于", listState, "h_about", screenCenterY, screenHeightPx) }

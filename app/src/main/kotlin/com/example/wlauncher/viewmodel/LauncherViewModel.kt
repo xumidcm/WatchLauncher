@@ -28,6 +28,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_LOW_RES = booleanPreferencesKey("low_res_icons")
         val KEY_SPLASH_ICON = booleanPreferencesKey("splash_icon")
         val KEY_SPLASH_DELAY = intPreferencesKey("splash_delay")
+        val KEY_ICON_PACK = stringPreferencesKey("icon_pack")
+        val KEY_APP_ORDER = stringPreferencesKey("app_order")
     }
 
     private val store = application.dataStore
@@ -49,6 +51,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _splashDelay = MutableStateFlow(500)
     val splashDelay: StateFlow<Int> = _splashDelay.asStateFlow()
+
+    private val _iconPack = MutableStateFlow<String?>(null)
+    val iconPack: StateFlow<String?> = _iconPack.asStateFlow()
+
+    private val _appOrder = MutableStateFlow<List<String>>(emptyList())
+    val appOrder: StateFlow<List<String>> = _appOrder.asStateFlow()
 
     private val _splashIcon = MutableStateFlow(true)
     val splashIcon: StateFlow<Boolean> = _splashIcon.asStateFlow()
@@ -78,6 +86,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 prefs[KEY_SPLASH_ICON]?.let { _splashIcon.value = it }
                 prefs[KEY_SPLASH_DELAY]?.let { _splashDelay.value = it.coerceIn(300, 1500) }
+                prefs[KEY_ICON_PACK]?.let { pkg ->
+                    if (pkg != _iconPack.value) {
+                        _iconPack.value = pkg.ifEmpty { null }
+                        appRepository.setIconPack(pkg.ifEmpty { null })
+                    }
+                }
+                prefs[KEY_APP_ORDER]?.let { orderStr ->
+                    val order = if (orderStr.isNotEmpty()) orderStr.split(",") else emptyList()
+                    _appOrder.value = order
+                    appRepository.setCustomOrder(order)
+                }
             }
         }
     }
@@ -167,6 +186,31 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _splashDelay.value = ms.coerceIn(300, 1500)
         viewModelScope.launch { store.edit { it[KEY_SPLASH_DELAY] = _splashDelay.value } }
     }
+
+    fun setIconPack(packageName: String?) {
+        _iconPack.value = packageName
+        appRepository.setIconPack(packageName)
+        viewModelScope.launch { store.edit { it[KEY_ICON_PACK] = packageName ?: "" } }
+    }
+
+    fun setAppOrder(order: List<String>) {
+        _appOrder.value = order
+        appRepository.setCustomOrder(order)
+        viewModelScope.launch { store.edit { it[KEY_APP_ORDER] = order.joinToString(",") } }
+    }
+
+    fun swapApps(fromIndex: Int, toIndex: Int) {
+        val current = _apps.value.toMutableList()
+        if (fromIndex in current.indices && toIndex in current.indices) {
+            val item = current.removeAt(fromIndex)
+            current.add(toIndex, item)
+            setAppOrder(current.map { it.packageName })
+        }
+    }
+
+    fun getIconPackManager() = appRepository.getIconPackManager()
+
+    private val _apps get() = appRepository.apps
 
     override fun onCleared() {
         super.onCleared()

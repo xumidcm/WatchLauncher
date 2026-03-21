@@ -67,7 +67,7 @@ fun CrashScreen(
     onOpenSettings: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().background(Color.White)
+        modifier = Modifier.fillMaxSize().background(Color.Black)
             .padding(horizontal = 24.dp)
     ) {
         Spacer(modifier = Modifier.height(60.dp))
@@ -79,20 +79,20 @@ fun CrashScreen(
 
         Box(
             modifier = Modifier.weight(1f).fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp)).background(Color(0xFFF5F5F5)).padding(12.dp)
+                .clip(RoundedCornerShape(12.dp)).background(Color(0xFF1A1A1A)).padding(12.dp)
         ) {
-            Text(crashInfo, fontSize = 11.sp, color = Color.DarkGray,
+            Text(crashInfo, fontSize = 11.sp, color = Color(0xFFAAAAAA),
                 modifier = Modifier.verticalScroll(rememberScrollState()))
         }
 
         Spacer(modifier = Modifier.height(16.dp))
         CrashBtn("复制详细信息", Color(0xFFE53935), Color.White, onCopyDetail)
         Spacer(modifier = Modifier.height(8.dp))
-        CrashBtn("复制简略信息", Color(0xFFEEEEEE), Color.DarkGray, onCopyBrief)
+        CrashBtn("复制简略信息", Color(0xFF2A2A2A), Color.White, onCopyBrief)
         Spacer(modifier = Modifier.height(8.dp))
-        CrashBtn("重启软件", Color(0xFFEEEEEE), Color.DarkGray, onRestart)
+        CrashBtn("重启软件", Color(0xFF2A2A2A), Color.White, onRestart)
         Spacer(modifier = Modifier.height(8.dp))
-        CrashBtn("应用详情", Color(0xFFEEEEEE), Color.DarkGray, onOpenSettings)
+        CrashBtn("应用详情", Color(0xFF2A2A2A), Color.White, onOpenSettings)
         Spacer(modifier = Modifier.height(30.dp))
     }
 }

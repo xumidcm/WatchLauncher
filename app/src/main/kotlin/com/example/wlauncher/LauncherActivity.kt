@@ -40,6 +40,7 @@ import com.example.wlauncher.ui.smartstack.SmartStackLayer
 import com.example.wlauncher.ui.anim.*
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel
+import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
 
 class LauncherActivity : ComponentActivity() {
@@ -141,6 +142,15 @@ fun LauncherScreen(vm: LauncherViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .let { mod ->
+                        // 动画过渡中阻止触摸
+                        if (screenState == ScreenState.App) {
+                            mod.pointerInput(Unit) {
+                                awaitPointerEventScope { while (true) { awaitPointerEvent().changes.forEach { it.consume() } } }
+                            }
+                        } else mod
+                    }
+                    .fillMaxSize()
                     .scaleBlurAlpha(
                         targetValues = appListLayerValues(screenState),
                         screenHeight = screenHeightPx,
@@ -166,7 +176,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
             AnimatedVisibility(
                 visible = showSplash && screenState == ScreenState.App && currentApp != null,
                 enter = fadeIn() + scaleIn(initialScale = 0.5f),
-                exit = fadeOut() + scaleOut(targetScale = 1.5f)
+                exit = fadeOut() + scaleOut(targetScale = 0.3f)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black),
@@ -218,19 +228,25 @@ fun LauncherScreen(vm: LauncherViewModel) {
 
             // Layer 6: Settings
             if (screenState == ScreenState.Settings) {
+                val iconPackState by vm.iconPack.collectAsState()
+                val iconPacks = remember { vm.getIconPackManager().getInstalledIconPacks().map { it.packageName to it.label } }
                 LauncherSettingsSheet(
                     currentLayout = layoutMode,
                     blurEnabled = blurEnabled,
                     lowResIcons = vm.lowResIcons.collectAsState().value,
                     splashIcon = splashIcon,
                     splashDelay = splashDelay,
+                    iconPackName = iconPackState,
+                    iconPacks = iconPacks,
                     onLayoutChange = { vm.setLayoutMode(it) },
                     onBlurToggle = { vm.setBlurEnabled(it) },
                     onLowResToggle = { vm.setLowResIcons(it) },
                     onSplashToggle = { vm.setSplashIcon(it) },
                     onSplashDelayChange = { vm.setSplashDelay(it) },
+                    onIconPackChange = { vm.setIconPack(it) },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )
+            }
             }
         }
     }

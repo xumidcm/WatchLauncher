@@ -45,19 +45,17 @@ fun ListDrawerScreen(
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val screenCenterY = screenHeightPx / 2f
-            // 第一项居中：top padding = 半屏高度 - 预估 item 高度一半
-            val topPadding = with(density) { (screenHeightPx / 2f - 40.dp.toPx()).toDp() }
 
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize().background(Color.Black),
                 contentPadding = PaddingValues(
-                    top = topPadding,
-                    bottom = topPadding,
+                    top = 40.dp,
+                    bottom = 60.dp,
                     start = 12.dp,
                     end = 12.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(apps, key = { it.packageName }) { app ->
                     val itemIndex = apps.indexOf(app)
@@ -78,23 +76,22 @@ fun ListDrawerScreen(
                                 }
                             }
                             .clickable {
-                                // origin x 偏左（图标在左侧约 15% 位置）
                                 val centerY = (itemInfo?.let { it.offset + it.size / 2f } ?: screenCenterY) / screenHeightPx
                                 onAppClick(app, Offset(0.15f, centerY))
                             }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Image(
                             bitmap = app.cachedIcon,
                             contentDescription = app.label,
-                            modifier = Modifier.size(52.dp).clip(CircleShape),
+                            modifier = Modifier.size(48.dp).clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Text(
                             text = app.label,
-                            fontSize = 17.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.W500,
                             color = Color.White
                         )
@@ -126,7 +123,7 @@ private fun computeItemScale(
     val dist = abs(itemCenterY - screenCenterY)
     val maxDist = screenHeight / 2f
     val t = (dist / maxDist).coerceIn(0f, 1f)
-    return 1f - 0.2f * t
+    return 1f - 0.15f * t
 }
 
 private fun computeEdgeBlur(
@@ -136,8 +133,8 @@ private fun computeEdgeBlur(
 ): Float {
     if (itemInfo == null) return 0f
     val itemCenterY = itemInfo.offset + itemInfo.size / 2f
-    val edgeDist = minOf(itemCenterY, screenHeight - itemCenterY)
-    val blurZone = screenHeight * 0.15f
-    if (edgeDist >= blurZone || edgeDist <= 0) return 0f
+    val edgeDist = minOf(itemCenterY.coerceAtLeast(0f), (screenHeight - itemCenterY).coerceAtLeast(0f))
+    val blurZone = screenHeight * 0.18f
+    if (edgeDist >= blurZone) return 0f
     return ((1f - edgeDist / blurZone) * 10f * density.density).coerceIn(0f, 10f * density.density)
 }
