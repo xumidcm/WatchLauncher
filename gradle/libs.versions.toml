@@ -6,6 +6,7 @@ activity-compose = "1.9.3"
 lifecycle = "2.8.7"
 core-ktx = "1.15.0"
 datastore = "1.0.0"
+cloudy = "0.2.7"
 
 [libraries]
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
@@ -23,6 +24,7 @@ compose-foundation = { module = "androidx.compose.foundation:foundation" }
 compose-material3 = { module = "androidx.compose.material3:material3" }
 compose-material-icons = { module = "androidx.compose.material:material-icons-extended" }
 compose-animation = { module = "androidx.compose.animation:animation" }
+compose-cloudy = { module = "com.github.skydoves:cloudy", version.ref = "cloudy" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

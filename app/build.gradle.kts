@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.wlauncher"
-        minSdk = 28
+        minSdk = 27
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.compose.material.icons)
     implementation(libs.compose.animation)
+    implementation(libs.compose.cloudy)
 
     debugImplementation(libs.compose.ui.tooling)
     implementation(libs.compose.ui.tooling.preview)
