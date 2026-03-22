@@ -42,7 +42,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_HONEYCOMB_TOP_FADE = intPreferencesKey("honeycomb_top_fade")
         val KEY_HONEYCOMB_BOTTOM_FADE = intPreferencesKey("honeycomb_bottom_fade")
         val KEY_SHOW_NOTIFICATION = booleanPreferencesKey("show_notification")
-        val KEY_FIRST_RUN = booleanPreferencesKey("first_run")
     }
 
     private val store = application.dataStore
@@ -95,9 +94,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _showNotification = MutableStateFlow(true)
     val showNotification: StateFlow<Boolean> = _showNotification.asStateFlow()
 
-    private val _firstRun = MutableStateFlow(true)
-    val firstRun: StateFlow<Boolean> = _firstRun.asStateFlow()
-
     private val _appOpenOrigin = MutableStateFlow(Offset(0.5f, 0.5f))
     val appOpenOrigin: StateFlow<Offset> = _appOpenOrigin.asStateFlow()
 
@@ -137,7 +133,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefs[KEY_HONEYCOMB_TOP_FADE]?.let { _honeycombTopFade.value = it.coerceIn(0, 160) }
                 prefs[KEY_HONEYCOMB_BOTTOM_FADE]?.let { _honeycombBottomFade.value = it.coerceIn(0, 160) }
                 prefs[KEY_SHOW_NOTIFICATION]?.let { _showNotification.value = it }
-                prefs[KEY_FIRST_RUN]?.let { _firstRun.value = it }
             }
         }
     }
@@ -274,11 +269,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setShowNotification(show: Boolean) {
         _showNotification.value = show
         viewModelScope.launch { store.edit { it[KEY_SHOW_NOTIFICATION] = show } }
-    }
-
-    fun setFirstRun(first: Boolean) {
-        _firstRun.value = first
-        viewModelScope.launch { store.edit { it[KEY_FIRST_RUN] = first } }
     }
 
     fun swapApps(fromIndex: Int, toIndex: Int) {

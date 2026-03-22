@@ -47,7 +47,6 @@ import com.example.wlauncher.ui.navigation.GestureHost
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
 import com.example.wlauncher.ui.notification.NotificationLayer
-import com.example.wlauncher.ui.onboarding.PermissionRequestSheet
 import com.example.wlauncher.ui.settings.LauncherSettingsSheet
 import com.example.wlauncher.ui.smartstack.SmartStackLayer
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
@@ -112,7 +111,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val honeycombTopFade by vm.honeycombTopFade.collectAsState()
     val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
     val showNotification by vm.showNotification.collectAsState()
-    val firstRun by vm.firstRun.collectAsState()
     val layerBlurEnabled = blurEnabled && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || screenState != ScreenState.App)
 
     var prevState by remember { mutableStateOf(screenState) }
@@ -285,10 +283,5 @@ fun LauncherScreen(vm: LauncherViewModel) {
             }
         }
 
-        if (firstRun) {
-            PermissionRequestSheet(
-                onDismiss = { vm.setFirstRun(false) }
-            )
-        }
     }
 }
