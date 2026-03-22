@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wlauncher.data.model.AppInfo
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 @OptIn(ExperimentalFoundationApi::class)
