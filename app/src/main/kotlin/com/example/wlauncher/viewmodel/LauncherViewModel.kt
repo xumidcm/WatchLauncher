@@ -37,6 +37,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_SPLASH_DELAY = intPreferencesKey("splash_delay")
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
         val KEY_LIST_ICON_SIZE = intPreferencesKey("list_icon_size")
+        val KEY_LIST_TEXT_SIZE = intPreferencesKey("list_text_size")
         val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
         val KEY_HONEYCOMB_TOP_BLUR = intPreferencesKey("honeycomb_top_blur")
         val KEY_HONEYCOMB_BOTTOM_BLUR = intPreferencesKey("honeycomb_bottom_blur")
@@ -77,6 +78,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _listIconSize = MutableStateFlow(48)
     val listIconSize: StateFlow<Int> = _listIconSize.asStateFlow()
+
+    private val _listTextSize = MutableStateFlow(18)
+    val listTextSize: StateFlow<Int> = _listTextSize.asStateFlow()
 
     private val _honeycombCols = MutableStateFlow(4)
     val honeycombCols: StateFlow<Int> = _honeycombCols.asStateFlow()
@@ -144,6 +148,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     appRepository.setCustomOrder(order)
                 }
                 prefs[KEY_LIST_ICON_SIZE]?.let { _listIconSize.value = it.coerceIn(32, 80) }
+                prefs[KEY_LIST_TEXT_SIZE]?.let { _listTextSize.value = it.coerceIn(12, 28) }
                 prefs[KEY_HONEYCOMB_COLS]?.let { _honeycombCols.value = it.coerceIn(3, 6) }
                 prefs[KEY_HONEYCOMB_TOP_BLUR]?.let { _honeycombTopBlur.value = it.coerceIn(0, 48) }
                 prefs[KEY_HONEYCOMB_BOTTOM_BLUR]?.let { _honeycombBottomBlur.value = it.coerceIn(0, 48) }
@@ -271,6 +276,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { store.edit { it[KEY_LIST_ICON_SIZE] = _listIconSize.value } }
     }
 
+    fun setListTextSize(size: Int) {
+        _listTextSize.value = size.coerceIn(12, 28)
+        viewModelScope.launch { store.edit { it[KEY_LIST_TEXT_SIZE] = _listTextSize.value } }
+    }
+
     fun setHoneycombCols(cols: Int) {
         _honeycombCols.value = cols.coerceIn(3, 6)
         viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_COLS] = _honeycombCols.value } }
@@ -328,6 +338,48 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val item = current.removeAt(fromIndex)
             current.add(toIndex, item)
             setAppOrder(current.map { it.packageName })
+        }
+    }
+
+    fun resetSettings() {
+        _layoutMode.value = LayoutMode.Honeycomb
+        _blurEnabled.value = true
+        _edgeBlurEnabled.value = false
+        _lowResIcons.value = false
+        _splashIcon.value = true
+        _splashDelay.value = 500
+        _listIconSize.value = 48
+        _listTextSize.value = 18
+        _honeycombCols.value = 4
+        _honeycombTopBlur.value = 12
+        _honeycombBottomBlur.value = 12
+        _honeycombTopFade.value = 56
+        _honeycombBottomFade.value = 56
+        _stepGoal.value = 10000
+        _showSteps.value = true
+        _showNotification.value = true
+        _showControlCenter.value = true
+        appRepository.refresh(128)
+        viewModelScope.launch {
+            store.edit {
+                it[KEY_LAYOUT] = LayoutMode.Honeycomb.name
+                it[KEY_BLUR] = true
+                it[KEY_EDGE_BLUR] = false
+                it[KEY_LOW_RES] = false
+                it[KEY_SPLASH_ICON] = true
+                it[KEY_SPLASH_DELAY] = 500
+                it[KEY_LIST_ICON_SIZE] = 48
+                it[KEY_LIST_TEXT_SIZE] = 18
+                it[KEY_HONEYCOMB_COLS] = 4
+                it[KEY_HONEYCOMB_TOP_BLUR] = 12
+                it[KEY_HONEYCOMB_BOTTOM_BLUR] = 12
+                it[KEY_HONEYCOMB_TOP_FADE] = 56
+                it[KEY_HONEYCOMB_BOTTOM_FADE] = 56
+                it[KEY_STEP_GOAL] = 10000
+                it[KEY_SHOW_STEPS] = true
+                it[KEY_SHOW_NOTIFICATION] = true
+                it[KEY_SHOW_CONTROL_CENTER] = true
+            }
         }
     }
 

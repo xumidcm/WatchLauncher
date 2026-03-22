@@ -1,5 +1,7 @@
 package com.example.wlauncher.ui.settings
 
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,15 +26,22 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.theme.WatchColors
 
@@ -45,6 +54,7 @@ fun LauncherSettingsSheet(
     splashIcon: Boolean = true,
     splashDelay: Int = 500,
     listIconSize: Int = 48,
+    listTextSize: Int = 18,
     honeycombCols: Int = 4,
     honeycombTopBlur: Int = 12,
     honeycombBottomBlur: Int = 12,
@@ -61,6 +71,7 @@ fun LauncherSettingsSheet(
     onSplashToggle: (Boolean) -> Unit = {},
     onSplashDelayChange: (Int) -> Unit = {},
     onListIconSizeChange: (Int) -> Unit = {},
+    onListTextSizeChange: (Int) -> Unit = {},
     onHoneycombColsChange: (Int) -> Unit = {},
     onHoneycombTopBlurChange: (Int) -> Unit = {},
     onHoneycombBottomBlurChange: (Int) -> Unit = {},
@@ -70,11 +81,14 @@ fun LauncherSettingsSheet(
     onStepGoalChange: (Int) -> Unit = {},
     onShowNotificationChange: (Boolean) -> Unit = {},
     onShowControlCenterChange: (Boolean) -> Unit = {},
+    onResetDefaults: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    val context = LocalContext.current
+    val isZh = rememberSystemIsChinese()
 
     BoxWithConstraints(
         modifier = modifier
@@ -94,7 +108,7 @@ fun LauncherSettingsSheet(
             item(key = "title") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "title" }, screenCenterY, screenHeightPx)
                 Text(
-                    text = "Launcher Settings",
+                    text = tr(isZh, "桌面设置", "Launcher Settings"),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -104,26 +118,26 @@ fun LauncherSettingsSheet(
                 )
             }
 
-            item("layout_header") { ScaledSectionHeader("Layout", listState, "layout_header", screenCenterY, screenHeightPx) }
+            item("layout_header") { ScaledSectionHeader(tr(isZh, "布局", "Layout"), listState, "layout_header", screenCenterY, screenHeightPx) }
             item("layout_honeycomb") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "layout_honeycomb" }, screenCenterY, screenHeightPx)
-                SettingOption("Honeycomb", "Apple Watch style grid", currentLayout == LayoutMode.Honeycomb, { onLayoutChange(LayoutMode.Honeycomb) }, scale)
+                SettingOption(tr(isZh, "蜂窝布局", "Honeycomb"), tr(isZh, "Apple Watch 风格网格", "Apple Watch style grid"), currentLayout == LayoutMode.Honeycomb, { onLayoutChange(LayoutMode.Honeycomb) }, scale)
             }
             item("layout_list") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "layout_list" }, screenCenterY, screenHeightPx)
-                SettingOption("List", "Vertical app list", currentLayout == LayoutMode.List, { onLayoutChange(LayoutMode.List) }, scale)
+                SettingOption(tr(isZh, "列表布局", "List"), tr(isZh, "纵向应用列表", "Vertical app list"), currentLayout == LayoutMode.List, { onLayoutChange(LayoutMode.List) }, scale)
             }
 
-            item("effects_header") { ScaledSectionHeader("Effects", listState, "effects_header", screenCenterY, screenHeightPx) }
+            item("effects_header") { ScaledSectionHeader(tr(isZh, "效果", "Effects"), listState, "effects_header", screenCenterY, screenHeightPx) }
             item("blur_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "blur_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle("Blur", "Enable blur on all supported Android versions", blurEnabled, onBlurToggle, scale = scale)
+                SettingToggle(tr(isZh, "模糊", "Blur"), tr(isZh, "在所有支持的 Android 版本上启用模糊", "Enable blur on all supported Android versions"), blurEnabled, onBlurToggle, scale = scale)
             }
             item("edge_blur_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "edge_blur_toggle" }, screenCenterY, screenHeightPx)
                 SettingToggle(
-                    label = "Edge Blur (Experimental)",
-                    description = if (blurEnabled) "Apply extra blur near the top and bottom edges" else "Enable Blur first",
+                    label = tr(isZh, "边缘模糊（实验）", "Edge Blur (Experimental)"),
+                    description = if (blurEnabled) tr(isZh, "在顶部和底部边缘增加模糊", "Apply extra blur near the top and bottom edges") else tr(isZh, "请先开启模糊", "Enable Blur first"),
                     isOn = edgeBlurEnabled,
                     onToggle = onEdgeBlurToggle,
                     enabled = blurEnabled,
@@ -132,90 +146,203 @@ fun LauncherSettingsSheet(
             }
             item("splash_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "splash_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle("Launch Overlay", "Show the centered app icon while launching", splashIcon, onSplashToggle, scale = scale)
+                SettingToggle(tr(isZh, "启动遮罩", "Launch Overlay"), tr(isZh, "启动应用时显示居中图标", "Show the centered app icon while launching"), splashIcon, onSplashToggle, scale = scale)
             }
             if (splashIcon) {
                 item("splash_delay") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "splash_delay" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Overlay Delay", "${splashDelay} ms", splashDelay.toFloat(), 300f..1500f, 11, { onSplashDelayChange(it.toInt()) }, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "遮罩延迟", "Overlay Delay"),
+                        valueText = "$splashDelay ms",
+                        value = splashDelay.toFloat(),
+                        valueRange = 300f..1500f,
+                        steps = 11,
+                        scale = scale,
+                        onValueCommitted = { onSplashDelayChange(it.toInt()) }
+                    )
                 }
             }
 
-            item("performance_header") { ScaledSectionHeader("Performance", listState, "performance_header", screenCenterY, screenHeightPx) }
+            item("performance_header") { ScaledSectionHeader(tr(isZh, "性能", "Performance"), listState, "performance_header", screenCenterY, screenHeightPx) }
             item("low_res_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "low_res_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle("Low-res Icons", "Use smaller cached icons for smoother scrolling", lowResIcons, onLowResToggle, scale = scale)
+                SettingToggle(tr(isZh, "低分辨率图标", "Low-res Icons"), tr(isZh, "使用更小的缓存图标来提升滚动流畅度", "Use smaller cached icons for smoother scrolling"), lowResIcons, onLowResToggle, scale = scale)
             }
 
             if (currentLayout == LayoutMode.List) {
-                item("list_size") {
-                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_size" }, screenCenterY, screenHeightPx)
-                    SettingSlider("List Icon Size", "${listIconSize} dp", listIconSize.toFloat(), 32f..80f, 11, { onListIconSizeChange(it.toInt()) }, scale = scale)
+                item("list_icon_size") {
+                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_icon_size" }, screenCenterY, screenHeightPx)
+                    DeferredSliderCard(
+                        label = tr(isZh, "列表图标大小", "List Icon Size"),
+                        valueText = "$listIconSize dp",
+                        value = listIconSize.toFloat(),
+                        valueRange = 40f..84f,
+                        steps = 10,
+                        scale = scale,
+                        onValueCommitted = { onListIconSizeChange(it.toInt()) }
+                    )
+                }
+                item("list_text_size") {
+                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_text_size" }, screenCenterY, screenHeightPx)
+                    DeferredSliderCard(
+                        label = tr(isZh, "列表文字大小", "List Text Size"),
+                        valueText = "${listTextSize}sp",
+                        value = listTextSize.toFloat(),
+                        valueRange = 12f..28f,
+                        steps = 15,
+                        scale = scale,
+                        onValueCommitted = { onListTextSizeChange(it.toInt()) }
+                    )
                 }
             }
 
             if (currentLayout == LayoutMode.Honeycomb) {
-                item("honeycomb_header") { ScaledSectionHeader("Honeycomb Edge Tuning", listState, "honeycomb_header", screenCenterY, screenHeightPx) }
+                item("honeycomb_header") { ScaledSectionHeader(tr(isZh, "蜂窝边缘调节", "Honeycomb Edge Tuning"), listState, "honeycomb_header", screenCenterY, screenHeightPx) }
                 item("honeycomb_cols") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_cols" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Narrow Row Columns", honeycombCols.toString(), honeycombCols.toFloat(), 3f..6f, 2, { onHoneycombColsChange(it.toInt()) }, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "窄行列数", "Narrow Row Columns"),
+                        valueText = honeycombCols.toString(),
+                        value = honeycombCols.toFloat(),
+                        valueRange = 3f..6f,
+                        steps = 2,
+                        scale = scale,
+                        onValueCommitted = { onHoneycombColsChange(it.toInt()) }
+                    )
                 }
                 item("honeycomb_top_blur") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_top_blur" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Top Blur Radius", "${honeycombTopBlur} dp", honeycombTopBlur.toFloat(), 0f..48f, 11, { onHoneycombTopBlurChange(it.toInt()) }, enabled = edgeBlurEnabled && blurEnabled, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "顶部模糊半径", "Top Blur Radius"),
+                        valueText = "$honeycombTopBlur dp",
+                        value = honeycombTopBlur.toFloat(),
+                        valueRange = 0f..48f,
+                        steps = 11,
+                        enabled = edgeBlurEnabled && blurEnabled,
+                        scale = scale,
+                        onValueCommitted = { onHoneycombTopBlurChange(it.toInt()) }
+                    )
                 }
                 item("honeycomb_bottom_blur") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_bottom_blur" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Bottom Blur Radius", "${honeycombBottomBlur} dp", honeycombBottomBlur.toFloat(), 0f..48f, 11, { onHoneycombBottomBlurChange(it.toInt()) }, enabled = edgeBlurEnabled && blurEnabled, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "底部模糊半径", "Bottom Blur Radius"),
+                        valueText = "$honeycombBottomBlur dp",
+                        value = honeycombBottomBlur.toFloat(),
+                        valueRange = 0f..48f,
+                        steps = 11,
+                        enabled = edgeBlurEnabled && blurEnabled,
+                        scale = scale,
+                        onValueCommitted = { onHoneycombBottomBlurChange(it.toInt()) }
+                    )
                 }
                 item("honeycomb_top_fade") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_top_fade" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Top Fade Range", "${honeycombTopFade} dp", honeycombTopFade.toFloat(), 0f..160f, 15, { onHoneycombTopFadeChange(it.toInt()) }, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "顶部渐隐范围", "Top Fade Range"),
+                        valueText = "$honeycombTopFade dp",
+                        value = honeycombTopFade.toFloat(),
+                        valueRange = 0f..160f,
+                        steps = 15,
+                        scale = scale,
+                        onValueCommitted = { onHoneycombTopFadeChange(it.toInt()) }
+                    )
                 }
                 item("honeycomb_bottom_fade") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_bottom_fade" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Bottom Fade Range", "${honeycombBottomFade} dp", honeycombBottomFade.toFloat(), 0f..160f, 15, { onHoneycombBottomFadeChange(it.toInt()) }, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "底部渐隐范围", "Bottom Fade Range"),
+                        valueText = "$honeycombBottomFade dp",
+                        value = honeycombBottomFade.toFloat(),
+                        valueRange = 0f..160f,
+                        steps = 15,
+                        scale = scale,
+                        onValueCommitted = { onHoneycombBottomFadeChange(it.toInt()) }
+                    )
                 }
             }
 
-            item("features_header") { ScaledSectionHeader("Features", listState, "features_header", screenCenterY, screenHeightPx) }
+            item("features_header") { ScaledSectionHeader(tr(isZh, "功能", "Features"), listState, "features_header", screenCenterY, screenHeightPx) }
             item("steps_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "steps_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle("Show Step Ring", "Display step progress on the watch face", showSteps, onShowStepsChange, scale = scale)
+                SettingToggle(tr(isZh, "步数环", "Show Step Ring"), tr(isZh, "在表盘上显示步数进度", "Display step progress on the watch face"), showSteps, onShowStepsChange, scale = scale)
             }
             if (showSteps) {
                 item("steps_goal") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "steps_goal" }, screenCenterY, screenHeightPx)
-                    SettingSlider("Step Goal", "$stepGoal steps", stepGoal.toFloat(), 1000f..30000f, 28, { onStepGoalChange(it.toInt()) }, scale = scale)
+                    DeferredSliderCard(
+                        label = tr(isZh, "步数目标", "Step Goal"),
+                        valueText = tr(isZh, "$stepGoal 步", "$stepGoal steps"),
+                        value = stepGoal.toFloat(),
+                        valueRange = 1000f..30000f,
+                        steps = 28,
+                        scale = scale,
+                        onValueCommitted = { onStepGoalChange(it.toInt()) }
+                    )
                 }
             }
             item("notification_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "notification_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle("Notification Center", "Enable the placeholder notification sheet", showNotification, onShowNotificationChange, scale = scale)
+                SettingToggle(tr(isZh, "通知中心", "Notification Center"), tr(isZh, "启用占位通知页", "Enable the placeholder notification sheet"), showNotification, onShowNotificationChange, scale = scale)
             }
             item("control_center_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "control_center_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle("Control Center", "Enable the placeholder control center sheet", showControlCenter, onShowControlCenterChange, scale = scale)
+                SettingToggle(tr(isZh, "控制中心", "Control Center"), tr(isZh, "启用占位控制中心", "Enable the placeholder control center sheet"), showControlCenter, onShowControlCenterChange, scale = scale)
             }
 
+            item("tools_header") { ScaledSectionHeader(tr(isZh, "工具", "Tools"), listState, "tools_header", screenCenterY, screenHeightPx) }
+            item("export_log") {
+                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "export_log" }, screenCenterY, screenHeightPx)
+                ToolButton(
+                    label = tr(isZh, "导出日志", "Export Log"),
+                    scale = scale
+                ) {
+                    try {
+                        val log = Runtime.getRuntime().exec("logcat -d -t 500").inputStream.bufferedReader().readText()
+                        val file = java.io.File(context.cacheDir, "wlauncher_log.txt")
+                        file.writeText(log)
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                },
+                                tr(isZh, "导出日志", "Export Log")
+                            )
+                        )
+                    } catch (_: Exception) {
+                        Toast.makeText(context, tr(isZh, "导出失败", "Export failed"), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            item("reset_defaults") {
+                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "reset_defaults" }, screenCenterY, screenHeightPx)
+                ToolButton(
+                    label = tr(isZh, "恢复默认设置", "Restore Defaults"),
+                    scale = scale
+                ) {
+                    onResetDefaults()
+                }
+            }
             item("back") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "back" }, screenCenterY, screenHeightPx)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .graphicsLayer { scaleX = scale; scaleY = scale; alpha = scale }
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(WatchColors.SurfaceGlass)
-                        .clickable { onDismiss() }
-                        .padding(14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Back", fontSize = 14.sp, color = WatchColors.ActiveCyan)
-                }
+                ToolButton(tr(isZh, "返回", "Back"), scale, onDismiss)
             }
         }
     }
 }
+
+@Composable
+private fun rememberSystemIsChinese(): Boolean {
+    val context = LocalContext.current
+    return remember(context.resources.configuration) {
+        context.resources.configuration.locales[0]?.language?.startsWith("zh") == true
+    }
+}
+
+private fun tr(isZh: Boolean, zh: String, en: String): String = if (isZh) zh else en
 
 private fun itemFisheye(
     info: androidx.compose.foundation.lazy.LazyListItemInfo?,
@@ -330,16 +457,20 @@ private fun SettingToggle(
 }
 
 @Composable
-private fun SettingSlider(
+private fun DeferredSliderCard(
     label: String,
     valueText: String,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     steps: Int,
-    onValueChange: (Float) -> Unit,
     enabled: Boolean = true,
-    scale: Float
+    scale: Float,
+    onValueCommitted: (Float) -> Unit
 ) {
+    var sliderValue by remember(label) { mutableFloatStateOf(value) }
+    LaunchedEffect(value) {
+        sliderValue = value
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -353,8 +484,9 @@ private fun SettingSlider(
         Text(valueText, fontSize = 12.sp, color = WatchColors.TextTertiary)
         Spacer(modifier = Modifier.height(8.dp))
         Slider(
-            value = value,
-            onValueChange = onValueChange,
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            onValueChangeFinished = { onValueCommitted(sliderValue) },
             valueRange = valueRange,
             steps = steps,
             enabled = enabled,
@@ -363,5 +495,21 @@ private fun SettingSlider(
                 activeTrackColor = WatchColors.ActiveCyan
             )
         )
+    }
+}
+
+@Composable
+private fun ToolButton(label: String, scale: Float, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale; alpha = scale.coerceIn(0.3f, 1f) }
+            .clip(RoundedCornerShape(16.dp))
+            .background(WatchColors.SurfaceGlass)
+            .clickable { onClick() }
+            .padding(14.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, fontSize = 14.sp, color = WatchColors.ActiveCyan)
     }
 }

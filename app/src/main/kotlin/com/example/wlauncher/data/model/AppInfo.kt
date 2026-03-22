@@ -8,5 +8,6 @@ data class AppInfo(
     val packageName: String,
     val activityName: String,
     val icon: Drawable,
-    val cachedIcon: ImageBitmap
+    val cachedIcon: ImageBitmap,
+    val cachedBlurredIcon: ImageBitmap
 )

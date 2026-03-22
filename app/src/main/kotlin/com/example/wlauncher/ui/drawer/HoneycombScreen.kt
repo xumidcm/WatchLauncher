@@ -1,5 +1,6 @@
 package com.example.wlauncher.ui.drawer
 
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
@@ -52,6 +53,7 @@ fun HoneycombScreen(
 ) {
     val context = LocalContext.current
     var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
+    var pressedAppKey by remember { mutableStateOf<String?>(null) }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -61,9 +63,14 @@ fun HoneycombScreen(
         val screenCenterY = screenHeightPx / 2f
         val screenRadius = minOf(screenWidthPx, screenHeightPx) / 2f
 
-        val iconSizeDp = 80.dp
-        val cellSize = with(density) { iconSizeDp.toPx() }
-        val iconSizePx = cellSize
+        val maxCols = narrowCols + 1
+        val availableWidth = screenWidthPx - with(density) { 20.dp.toPx() }
+        val iconSizePx = (availableWidth / (maxCols + 0.35f)).coerceIn(
+            with(density) { 54.dp.toPx() },
+            with(density) { 84.dp.toPx() }
+        )
+        val iconSizeDp = with(density) { iconSizePx.toDp() }
+        val cellSize = iconSizePx * 1.02f
         val topFadePx = with(density) { topFadeRangeDp.dp.toPx() }
         val bottomFadePx = with(density) { bottomFadeRangeDp.dp.toPx() }
 
@@ -103,13 +110,13 @@ fun HoneycombScreen(
                                 next < minScroll -> next - minScroll
                                 else -> 0f
                             }
-                            val dampedDrag = if (overscroll != 0f) dragAmount.y * 0.3f else dragAmount.y
+                            val dampedDrag = if (overscroll != 0f) dragAmount.y * 0.28f else dragAmount.y
                             scope.launch { scrollOffset.snapTo(current + dampedDrag) }
                         },
                         onDragEnd = {
                             val velocity = velocityTracker.calculateVelocity().y
                             val current = scrollOffset.value
-                            if (current >= maxScroll - cellSize * 0.5f && velocity > 800f) {
+                            if (current >= maxScroll - iconSizePx * 0.45f && velocity > 800f) {
                                 onScrollToTop()
                                 return@detectDragGestures
                             }
@@ -117,7 +124,7 @@ fun HoneycombScreen(
                                 scope.launch {
                                     scrollOffset.animateTo(
                                         current.coerceIn(minScroll, maxScroll),
-                                        spring(dampingRatio = 0.6f, stiffness = 400f)
+                                        spring(dampingRatio = 0.64f, stiffness = 360f)
                                     )
                                 }
                             } else {
@@ -127,7 +134,7 @@ fun HoneycombScreen(
                                             scope.launch {
                                                 scrollOffset.animateTo(
                                                     value.coerceIn(minScroll, maxScroll),
-                                                    spring(dampingRatio = 0.6f, stiffness = 400f)
+                                                    spring(dampingRatio = 0.64f, stiffness = 360f)
                                                 )
                                             }
                                         }
@@ -148,21 +155,20 @@ fun HoneycombScreen(
                 val posY = screenCenterY + gridPos.y + currentScroll
                 if (posY < visibleTop || posY > visibleBottom) return@forEachIndexed
 
-                val topStrength = edgeStrength(
-                    position = posY,
-                    leadingRange = topFadePx
-                )
-                val bottomStrength = edgeStrength(
-                    position = screenHeightPx - posY,
-                    leadingRange = bottomFadePx
-                )
+                val topStrength = edgeStrength(posY, topFadePx)
+                val bottomStrength = edgeStrength(screenHeightPx - posY, bottomFadePx)
                 val topBlur = topStrength * topBlurRadiusDp
                 val bottomBlur = bottomStrength * bottomBlurRadiusDp
                 val itemBlur = maxOf(topBlur, bottomBlur)
+                val appKey = "${app.packageName}/${app.activityName}"
 
-                key("${app.packageName}/${app.activityName}") {
+                key(appKey) {
                     AppBubble(
-                        icon = app.cachedIcon,
+                        icon = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && blurEnabled && edgeBlurEnabled && itemBlur > 0.5f) {
+                            app.cachedBlurredIcon
+                        } else {
+                            app.cachedIcon
+                        },
                         size = iconSizeDp,
                         onClick = {
                             val sy = scrollOffset.value
@@ -175,6 +181,9 @@ fun HoneycombScreen(
                             onLongClick(app)
                             longPressedApp = app
                         },
+                        onPressedChange = { pressed ->
+                            pressedAppKey = if (pressed) appKey else pressedAppKey.takeUnless { it == appKey }
+                        },
                         modifier = Modifier
                             .graphicsLayer {
                                 val sy = scrollOffset.value
@@ -186,12 +195,22 @@ fun HoneycombScreen(
                                 val dx = posX - screenCenterX
                                 val dy = pY - screenCenterY
                                 val dist = sqrt(dx * dx + dy * dy)
-                                val scale = fisheyeScale(dist, screenRadius * 1.8f, minScale = 0.55f)
+                                val scale = fisheyeScale(dist, screenRadius * 1.65f, minScale = 0.58f)
+                                val pressedOffset = neighborPressOffset(
+                                    appKey = appKey,
+                                    pressedAppKey = pressedAppKey,
+                                    current = gridPos,
+                                    positions = positions,
+                                    apps = apps,
+                                    iconSizePx = iconSizePx,
+                                    cellSize = cellSize
+                                )
                                 scaleX = scale
                                 scaleY = scale
-                                alpha = scale.coerceIn(0.2f, 1f)
+                                alpha = scale.coerceIn(0.24f, 1f)
+                                translationY += pressedOffset
                             }
-                            .platformBlur(itemBlur, blurEnabled && edgeBlurEnabled)
+                            .platformBlur(itemBlur, blurEnabled && edgeBlurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                     )
                 }
             }
@@ -218,19 +237,32 @@ fun HoneycombScreen(
     }
 
     longPressedApp?.let { app ->
-        AppShortcutOverlay(
-            app = app,
-            blurEnabled = blurEnabled,
-            onDismiss = { longPressedApp = null }
-        )
+        AppShortcutOverlay(app = app, blurEnabled = blurEnabled, onDismiss = { longPressedApp = null })
     }
 }
 
-private fun edgeStrength(
-    position: Float,
-    leadingRange: Float
-): Float {
+private fun edgeStrength(position: Float, leadingRange: Float): Float {
     if (leadingRange <= 0f) return 0f
     if (position <= 0f || position >= leadingRange) return 0f
     return (1f - (position / leadingRange)).coerceIn(0f, 1f)
+}
+
+private fun neighborPressOffset(
+    appKey: String,
+    pressedAppKey: String?,
+    current: Offset,
+    positions: List<Offset>,
+    apps: List<AppInfo>,
+    iconSizePx: Float,
+    cellSize: Float
+): Float {
+    if (pressedAppKey == null) return 0f
+    if (pressedAppKey == appKey) return iconSizePx * 0.08f
+    val pressedIndex = apps.indexOfFirst { "${it.packageName}/${it.activityName}" == pressedAppKey }
+    val pressedPos = positions.getOrNull(pressedIndex) ?: return 0f
+    val ddx = current.x - pressedPos.x
+    val ddy = current.y - pressedPos.y
+    val distance = sqrt(ddx * ddx + ddy * ddy)
+    val range = cellSize * 1.2f
+    return iconSizePx * 0.03f * (1f - distance / range).coerceIn(0f, 1f)
 }

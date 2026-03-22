@@ -6,8 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ResolveInfo
+import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import androidx.renderscript.Toolkit
 import com.example.wlauncher.data.model.AppInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,12 +70,19 @@ class AppRepository(private val context: Context) {
             .distinctBy { "${it.activityInfo.packageName}/${it.activityInfo.name}" }
             .map { ri ->
                 val iconDrawable = ri.loadIcon(pm)
+                val iconBitmap = iconDrawable.toBitmap(iconSize, iconSize, Bitmap.Config.ARGB_8888)
+                val blurredBitmap = try {
+                    Toolkit.blur(iconBitmap, 12)
+                } catch (_: Throwable) {
+                    iconBitmap
+                }
                 AppInfo(
                     label = ri.loadLabel(pm).toString(),
                     packageName = ri.activityInfo.packageName,
                     activityName = ri.activityInfo.name,
                     icon = iconDrawable,
-                    cachedIcon = iconDrawable.toBitmap(iconSize, iconSize).asImageBitmap()
+                    cachedIcon = iconBitmap.asImageBitmap(),
+                    cachedBlurredIcon = blurredBitmap.asImageBitmap()
                 )
             }
             .let { list ->

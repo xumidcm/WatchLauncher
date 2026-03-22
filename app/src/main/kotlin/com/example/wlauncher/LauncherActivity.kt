@@ -107,6 +107,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val splashDelay by vm.splashDelay.collectAsState()
     val currentApp by vm.currentApp.collectAsState()
     val listIconSize by vm.listIconSize.collectAsState()
+    val listTextSize by vm.listTextSize.collectAsState()
     val honeycombCols by vm.honeycombCols.collectAsState()
     val honeycombTopBlur by vm.honeycombTopBlur.collectAsState()
     val honeycombBottomBlur by vm.honeycombBottomBlur.collectAsState()
@@ -188,6 +189,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         blurEnabled = blurEnabled,
                         edgeBlurEnabled = edgeBlurEnabled,
                         iconSize = listIconSize.dp,
+                        textSizeSp = listTextSize,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
@@ -275,6 +277,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     splashIcon = splashIcon,
                     splashDelay = splashDelay,
                     listIconSize = listIconSize,
+                    listTextSize = listTextSize,
                     honeycombCols = honeycombCols,
                     honeycombTopBlur = honeycombTopBlur,
                     honeycombBottomBlur = honeycombBottomBlur,
@@ -291,6 +294,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onSplashToggle = { vm.setSplashIcon(it) },
                     onSplashDelayChange = { vm.setSplashDelay(it) },
                     onListIconSizeChange = { vm.setListIconSize(it) },
+                    onListTextSizeChange = { vm.setListTextSize(it) },
                     onHoneycombColsChange = { vm.setHoneycombCols(it) },
                     onHoneycombTopBlurChange = { vm.setHoneycombTopBlur(it) },
                     onHoneycombBottomBlurChange = { vm.setHoneycombBottomBlur(it) },
@@ -300,6 +304,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onStepGoalChange = { vm.setStepGoal(it) },
                     onShowNotificationChange = { vm.setShowNotification(it) },
                     onShowControlCenterChange = { vm.setShowControlCenter(it) },
+                    onResetDefaults = { vm.resetSettings() },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )
             }

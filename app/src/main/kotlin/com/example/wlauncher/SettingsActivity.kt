@@ -23,6 +23,7 @@ import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_TOP_FADE
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_LAYOUT
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_LOW_RES
+import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_LIST_TEXT_SIZE
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_SPLASH_DELAY
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_SPLASH_ICON
 import com.example.wlauncher.viewmodel.dataStore
@@ -48,6 +49,7 @@ class SettingsActivity : ComponentActivity() {
                 val lowRes = prefs?.get(KEY_LOW_RES) ?: false
                 val splash = prefs?.get(KEY_SPLASH_ICON) ?: true
                 val delay = prefs?.get(KEY_SPLASH_DELAY) ?: 500
+                val listTextSize = prefs?.get(KEY_LIST_TEXT_SIZE) ?: 18
                 val honeycombCols = prefs?.get(KEY_HONEYCOMB_COLS) ?: 4
                 val topBlur = prefs?.get(KEY_HONEYCOMB_TOP_BLUR) ?: 12
                 val bottomBlur = prefs?.get(KEY_HONEYCOMB_BOTTOM_BLUR) ?: 12
@@ -61,6 +63,7 @@ class SettingsActivity : ComponentActivity() {
                     lowResIcons = lowRes,
                     splashIcon = splash,
                     splashDelay = delay,
+                    listTextSize = listTextSize,
                     honeycombCols = honeycombCols,
                     honeycombTopBlur = topBlur,
                     honeycombBottomBlur = bottomBlur,
@@ -81,11 +84,30 @@ class SettingsActivity : ComponentActivity() {
                     onLowResToggle = { scope.launch { dataStore.edit { p -> p[KEY_LOW_RES] = it } } },
                     onSplashToggle = { scope.launch { dataStore.edit { p -> p[KEY_SPLASH_ICON] = it } } },
                     onSplashDelayChange = { scope.launch { dataStore.edit { p -> p[KEY_SPLASH_DELAY] = it } } },
+                    onListTextSizeChange = { scope.launch { dataStore.edit { p -> p[KEY_LIST_TEXT_SIZE] = it } } },
                     onHoneycombColsChange = { scope.launch { dataStore.edit { p -> p[KEY_HONEYCOMB_COLS] = it } } },
                     onHoneycombTopBlurChange = { scope.launch { dataStore.edit { p -> p[KEY_HONEYCOMB_TOP_BLUR] = it } } },
                     onHoneycombBottomBlurChange = { scope.launch { dataStore.edit { p -> p[KEY_HONEYCOMB_BOTTOM_BLUR] = it } } },
                     onHoneycombTopFadeChange = { scope.launch { dataStore.edit { p -> p[KEY_HONEYCOMB_TOP_FADE] = it } } },
                     onHoneycombBottomFadeChange = { scope.launch { dataStore.edit { p -> p[KEY_HONEYCOMB_BOTTOM_FADE] = it } } },
+                    onResetDefaults = {
+                        scope.launch {
+                            dataStore.edit { p ->
+                                p[KEY_LAYOUT] = LayoutMode.Honeycomb.name
+                                p[KEY_BLUR] = true
+                                p[KEY_EDGE_BLUR] = false
+                                p[KEY_LOW_RES] = false
+                                p[KEY_SPLASH_ICON] = true
+                                p[KEY_SPLASH_DELAY] = 500
+                                p[KEY_LIST_TEXT_SIZE] = 18
+                                p[KEY_HONEYCOMB_COLS] = 4
+                                p[KEY_HONEYCOMB_TOP_BLUR] = 12
+                                p[KEY_HONEYCOMB_BOTTOM_BLUR] = 12
+                                p[KEY_HONEYCOMB_TOP_FADE] = 56
+                                p[KEY_HONEYCOMB_BOTTOM_FADE] = 56
+                            }
+                        }
+                    },
                     onDismiss = { finish() },
                     modifier = Modifier
                         .fillMaxSize()
