@@ -50,6 +50,10 @@ fun LauncherSettingsSheet(
     honeycombBottomBlur: Int = 12,
     honeycombTopFade: Int = 56,
     honeycombBottomFade: Int = 56,
+    showSteps: Boolean = true,
+    stepGoal: Int = 10000,
+    showNotification: Boolean = true,
+    showControlCenter: Boolean = true,
     onLayoutChange: (LayoutMode) -> Unit,
     onBlurToggle: (Boolean) -> Unit,
     onEdgeBlurToggle: (Boolean) -> Unit = {},
@@ -62,6 +66,10 @@ fun LauncherSettingsSheet(
     onHoneycombBottomBlurChange: (Int) -> Unit = {},
     onHoneycombTopFadeChange: (Int) -> Unit = {},
     onHoneycombBottomFadeChange: (Int) -> Unit = {},
+    onShowStepsChange: (Boolean) -> Unit = {},
+    onStepGoalChange: (Int) -> Unit = {},
+    onShowNotificationChange: (Boolean) -> Unit = {},
+    onShowControlCenterChange: (Boolean) -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -99,41 +107,23 @@ fun LauncherSettingsSheet(
             item("layout_header") { ScaledSectionHeader("Layout", listState, "layout_header", screenCenterY, screenHeightPx) }
             item("layout_honeycomb") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "layout_honeycomb" }, screenCenterY, screenHeightPx)
-                SettingOption(
-                    label = "Honeycomb",
-                    description = "Apple Watch style grid",
-                    isSelected = currentLayout == LayoutMode.Honeycomb,
-                    onClick = { onLayoutChange(LayoutMode.Honeycomb) },
-                    scale = scale
-                )
+                SettingOption("Honeycomb", "Apple Watch style grid", currentLayout == LayoutMode.Honeycomb, { onLayoutChange(LayoutMode.Honeycomb) }, scale)
             }
             item("layout_list") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "layout_list" }, screenCenterY, screenHeightPx)
-                SettingOption(
-                    label = "List",
-                    description = "Vertical app list",
-                    isSelected = currentLayout == LayoutMode.List,
-                    onClick = { onLayoutChange(LayoutMode.List) },
-                    scale = scale
-                )
+                SettingOption("List", "Vertical app list", currentLayout == LayoutMode.List, { onLayoutChange(LayoutMode.List) }, scale)
             }
 
-            item("anim_header") { ScaledSectionHeader("Effects", listState, "anim_header", screenCenterY, screenHeightPx) }
+            item("effects_header") { ScaledSectionHeader("Effects", listState, "effects_header", screenCenterY, screenHeightPx) }
             item("blur_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "blur_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle(
-                    label = "Blur",
-                    description = "Enable blur on all supported Android versions",
-                    isOn = blurEnabled,
-                    onToggle = onBlurToggle,
-                    scale = scale
-                )
+                SettingToggle("Blur", "Enable blur on all supported Android versions", blurEnabled, onBlurToggle, scale = scale)
             }
             item("edge_blur_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "edge_blur_toggle" }, screenCenterY, screenHeightPx)
                 SettingToggle(
                     label = "Edge Blur (Experimental)",
-                    description = if (blurEnabled) "Apply extra blur near top and bottom edges" else "Enable Blur first",
+                    description = if (blurEnabled) "Apply extra blur near the top and bottom edges" else "Enable Blur first",
                     isOn = edgeBlurEnabled,
                     onToggle = onEdgeBlurToggle,
                     enabled = blurEnabled,
@@ -142,122 +132,70 @@ fun LauncherSettingsSheet(
             }
             item("splash_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "splash_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle(
-                    label = "Launch Overlay",
-                    description = "Show the centered app icon while launching",
-                    isOn = splashIcon,
-                    onToggle = onSplashToggle,
-                    scale = scale
-                )
+                SettingToggle("Launch Overlay", "Show the centered app icon while launching", splashIcon, onSplashToggle, scale = scale)
             }
             if (splashIcon) {
                 item("splash_delay") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "splash_delay" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "Overlay Delay",
-                        valueText = "${splashDelay} ms",
-                        value = splashDelay.toFloat(),
-                        valueRange = 300f..1500f,
-                        steps = 11,
-                        onValueChange = { onSplashDelayChange(it.toInt()) },
-                        scale = scale
-                    )
+                    SettingSlider("Overlay Delay", "${splashDelay} ms", splashDelay.toFloat(), 300f..1500f, 11, { onSplashDelayChange(it.toInt()) }, scale = scale)
                 }
             }
 
-            item("perf_header") { ScaledSectionHeader("Performance", listState, "perf_header", screenCenterY, screenHeightPx) }
+            item("performance_header") { ScaledSectionHeader("Performance", listState, "performance_header", screenCenterY, screenHeightPx) }
             item("low_res_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "low_res_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle(
-                    label = "Low-res Icons",
-                    description = "Use smaller cached icons for smoother scrolling",
-                    isOn = lowResIcons,
-                    onToggle = onLowResToggle,
-                    scale = scale
-                )
+                SettingToggle("Low-res Icons", "Use smaller cached icons for smoother scrolling", lowResIcons, onLowResToggle, scale = scale)
             }
 
             if (currentLayout == LayoutMode.List) {
                 item("list_size") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "list_size" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "List Icon Size",
-                        valueText = "${listIconSize} dp",
-                        value = listIconSize.toFloat(),
-                        valueRange = 32f..80f,
-                        steps = 11,
-                        onValueChange = { onListIconSizeChange(it.toInt()) },
-                        scale = scale
-                    )
+                    SettingSlider("List Icon Size", "${listIconSize} dp", listIconSize.toFloat(), 32f..80f, 11, { onListIconSizeChange(it.toInt()) }, scale = scale)
                 }
             }
 
             if (currentLayout == LayoutMode.Honeycomb) {
-                item("honeycomb_header") {
-                    ScaledSectionHeader("Honeycomb Edge Tuning", listState, "honeycomb_header", screenCenterY, screenHeightPx)
-                }
+                item("honeycomb_header") { ScaledSectionHeader("Honeycomb Edge Tuning", listState, "honeycomb_header", screenCenterY, screenHeightPx) }
                 item("honeycomb_cols") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_cols" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "Narrow Row Columns",
-                        valueText = honeycombCols.toString(),
-                        value = honeycombCols.toFloat(),
-                        valueRange = 3f..6f,
-                        steps = 2,
-                        onValueChange = { onHoneycombColsChange(it.toInt()) },
-                        scale = scale
-                    )
+                    SettingSlider("Narrow Row Columns", honeycombCols.toString(), honeycombCols.toFloat(), 3f..6f, 2, { onHoneycombColsChange(it.toInt()) }, scale = scale)
                 }
                 item("honeycomb_top_blur") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_top_blur" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "Top Blur Radius",
-                        valueText = "${honeycombTopBlur} dp",
-                        value = honeycombTopBlur.toFloat(),
-                        valueRange = 0f..48f,
-                        steps = 11,
-                        onValueChange = { onHoneycombTopBlurChange(it.toInt()) },
-                        enabled = edgeBlurEnabled && blurEnabled,
-                        scale = scale
-                    )
+                    SettingSlider("Top Blur Radius", "${honeycombTopBlur} dp", honeycombTopBlur.toFloat(), 0f..48f, 11, { onHoneycombTopBlurChange(it.toInt()) }, enabled = edgeBlurEnabled && blurEnabled, scale = scale)
                 }
                 item("honeycomb_bottom_blur") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_bottom_blur" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "Bottom Blur Radius",
-                        valueText = "${honeycombBottomBlur} dp",
-                        value = honeycombBottomBlur.toFloat(),
-                        valueRange = 0f..48f,
-                        steps = 11,
-                        onValueChange = { onHoneycombBottomBlurChange(it.toInt()) },
-                        enabled = edgeBlurEnabled && blurEnabled,
-                        scale = scale
-                    )
+                    SettingSlider("Bottom Blur Radius", "${honeycombBottomBlur} dp", honeycombBottomBlur.toFloat(), 0f..48f, 11, { onHoneycombBottomBlurChange(it.toInt()) }, enabled = edgeBlurEnabled && blurEnabled, scale = scale)
                 }
                 item("honeycomb_top_fade") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_top_fade" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "Top Fade Range",
-                        valueText = "${honeycombTopFade} dp",
-                        value = honeycombTopFade.toFloat(),
-                        valueRange = 0f..160f,
-                        steps = 15,
-                        onValueChange = { onHoneycombTopFadeChange(it.toInt()) },
-                        scale = scale
-                    )
+                    SettingSlider("Top Fade Range", "${honeycombTopFade} dp", honeycombTopFade.toFloat(), 0f..160f, 15, { onHoneycombTopFadeChange(it.toInt()) }, scale = scale)
                 }
                 item("honeycomb_bottom_fade") {
                     val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_bottom_fade" }, screenCenterY, screenHeightPx)
-                    SettingSlider(
-                        label = "Bottom Fade Range",
-                        valueText = "${honeycombBottomFade} dp",
-                        value = honeycombBottomFade.toFloat(),
-                        valueRange = 0f..160f,
-                        steps = 15,
-                        onValueChange = { onHoneycombBottomFadeChange(it.toInt()) },
-                        scale = scale
-                    )
+                    SettingSlider("Bottom Fade Range", "${honeycombBottomFade} dp", honeycombBottomFade.toFloat(), 0f..160f, 15, { onHoneycombBottomFadeChange(it.toInt()) }, scale = scale)
                 }
+            }
+
+            item("features_header") { ScaledSectionHeader("Features", listState, "features_header", screenCenterY, screenHeightPx) }
+            item("steps_toggle") {
+                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "steps_toggle" }, screenCenterY, screenHeightPx)
+                SettingToggle("Show Step Ring", "Display step progress on the watch face", showSteps, onShowStepsChange, scale = scale)
+            }
+            if (showSteps) {
+                item("steps_goal") {
+                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "steps_goal" }, screenCenterY, screenHeightPx)
+                    SettingSlider("Step Goal", "$stepGoal steps", stepGoal.toFloat(), 1000f..30000f, 28, { onStepGoalChange(it.toInt()) }, scale = scale)
+                }
+            }
+            item("notification_toggle") {
+                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "notification_toggle" }, screenCenterY, screenHeightPx)
+                SettingToggle("Notification Center", "Enable the placeholder notification sheet", showNotification, onShowNotificationChange, scale = scale)
+            }
+            item("control_center_toggle") {
+                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "control_center_toggle" }, screenCenterY, screenHeightPx)
+                SettingToggle("Control Center", "Enable the placeholder control center sheet", showControlCenter, onShowControlCenterChange, scale = scale)
             }
 
             item("back") {
@@ -337,12 +275,7 @@ private fun SettingOption(
             Text(description, fontSize = 12.sp, color = WatchColors.TextTertiary)
         }
         if (isSelected) {
-            Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = null,
-                tint = WatchColors.ActiveCyan,
-                modifier = Modifier.size(20.dp)
-            )
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = WatchColors.ActiveCyan, modifier = Modifier.size(20.dp))
         }
     }
 }

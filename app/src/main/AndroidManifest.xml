@@ -9,6 +9,10 @@
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- 系统亮度等设置 -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <!-- 步数统计 -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- 后台健康数据访问 -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_HEALTH_DATA" />
 
     <application
         android:allowBackup="false"
@@ -63,6 +67,15 @@
             android:exported="false"
             android:theme="@style/Theme.WatchLauncher"
             android:screenOrientation="portrait" />
+
+        <service
+            android:name=".service.WLauncherNotificationListener"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

@@ -48,6 +48,7 @@ import com.example.wlauncher.ui.navigation.GestureHost
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
 import com.example.wlauncher.ui.notification.NotificationLayer
+import com.example.wlauncher.ui.onboarding.PermissionRequestSheet
 import com.example.wlauncher.ui.settings.LauncherSettingsSheet
 import com.example.wlauncher.ui.smartstack.SmartStackLayer
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
@@ -111,6 +112,11 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val honeycombBottomBlur by vm.honeycombBottomBlur.collectAsState()
     val honeycombTopFade by vm.honeycombTopFade.collectAsState()
     val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
+    val showSteps by vm.showSteps.collectAsState()
+    val stepGoal by vm.stepGoal.collectAsState()
+    val showNotification by vm.showNotification.collectAsState()
+    val showControlCenter by vm.showControlCenter.collectAsState()
+    val firstRun by vm.firstRun.collectAsState()
 
     var prevState by remember { mutableStateOf(screenState) }
     val isReturningFromApp = prevState == ScreenState.App && screenState == ScreenState.Apps
@@ -140,6 +146,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
         GestureHost(
             screenState = screenState,
             onStateChange = { vm.setState(it) },
+            showNotification = showNotification,
+            showControlCenter = showControlCenter,
             modifier = Modifier.fillMaxSize()
         ) {
             Box(
@@ -150,7 +158,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         screenHeight = screenHeightPx,
                         blurEnabled = blurEnabled
                     )
-            ) { WatchFaceLayer() }
+            ) { WatchFaceLayer(showSteps = showSteps, stepGoal = stepGoal) }
 
             Box(
                 modifier = Modifier
@@ -234,25 +242,29 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) { SmartStackLayer() }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .scaleBlurAlpha(
-                        targetValues = notificationLayerValues(screenState),
-                        screenHeight = screenHeightPx,
-                        blurEnabled = blurEnabled
-                    )
-            ) { NotificationLayer() }
+            if (showNotification) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .scaleBlurAlpha(
+                            targetValues = notificationLayerValues(screenState),
+                            screenHeight = screenHeightPx,
+                            blurEnabled = blurEnabled
+                        )
+                ) { NotificationLayer() }
+            }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .scaleBlurAlpha(
-                        targetValues = controlCenterLayerValues(screenState),
-                        screenHeight = screenHeightPx,
-                        blurEnabled = blurEnabled
-                    )
-            ) { ControlCenterLayer() }
+            if (showControlCenter) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .scaleBlurAlpha(
+                            targetValues = controlCenterLayerValues(screenState),
+                            screenHeight = screenHeightPx,
+                            blurEnabled = blurEnabled
+                        )
+                ) { ControlCenterLayer() }
+            }
 
             if (screenState == ScreenState.Settings) {
                 LauncherSettingsSheet(
@@ -268,6 +280,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     honeycombBottomBlur = honeycombBottomBlur,
                     honeycombTopFade = honeycombTopFade,
                     honeycombBottomFade = honeycombBottomFade,
+                    showSteps = showSteps,
+                    stepGoal = stepGoal,
+                    showNotification = showNotification,
+                    showControlCenter = showControlCenter,
                     onLayoutChange = { vm.setLayoutMode(it) },
                     onBlurToggle = { vm.setBlurEnabled(it) },
                     onEdgeBlurToggle = { vm.setEdgeBlurEnabled(it) },
@@ -280,9 +296,19 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onHoneycombBottomBlurChange = { vm.setHoneycombBottomBlur(it) },
                     onHoneycombTopFadeChange = { vm.setHoneycombTopFade(it) },
                     onHoneycombBottomFadeChange = { vm.setHoneycombBottomFade(it) },
+                    onShowStepsChange = { vm.setShowSteps(it) },
+                    onStepGoalChange = { vm.setStepGoal(it) },
+                    onShowNotificationChange = { vm.setShowNotification(it) },
+                    onShowControlCenterChange = { vm.setShowControlCenter(it) },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )
             }
+        }
+
+        if (firstRun) {
+            PermissionRequestSheet(
+                onDismiss = { vm.setFirstRun(false) }
+            )
         }
     }
 }

@@ -12,6 +12,8 @@ fun GestureHost(
     screenState: ScreenState,
     onStateChange: (ScreenState) -> Unit,
     modifier: Modifier = Modifier,
+    showNotification: Boolean = true,
+    showControlCenter: Boolean = true,
     content: @Composable () -> Unit
 ) {
     var totalDx by remember { mutableFloatStateOf(0f) }
@@ -34,15 +36,19 @@ fun GestureHost(
                         if (!consumed && (abs(totalDx) > 80 || abs(totalDy) > 80)) {
                             consumed = true
                             val isVertical = abs(totalDy) > abs(totalDx)
+                            val isHorizontal = !isVertical
 
                             when (screenState) {
                                 ScreenState.Face -> {
                                     if (isVertical && totalDy < -80) {
-                                        // 上滑直接进应用列表
                                         onStateChange(ScreenState.Apps)
                                         change.consume()
-                                    } else if (isVertical && totalDy > 80) {
+                                    } else if (isVertical && totalDy > 80 && showNotification) {
                                         onStateChange(ScreenState.Notifications)
+                                        change.consume()
+                                    } else if (isHorizontal && totalDx < -80 && showControlCenter) {
+                                        // 左滑 → 控制中心
+                                        onStateChange(ScreenState.ControlCenter)
                                         change.consume()
                                     }
                                 }
@@ -55,19 +61,17 @@ fun GestureHost(
                                 }
 
                                 ScreenState.ControlCenter -> {
-                                    onStateChange(ScreenState.Face)
-                                    change.consume()
+                                    if (isHorizontal && totalDx > 80) {
+                                        // 右滑返回表盘
+                                        onStateChange(ScreenState.Face)
+                                        change.consume()
+                                    }
                                 }
 
-                                ScreenState.Apps -> {
-                                    // 不拦截，留给 HoneycombScreen/ListDrawer 处理滚动
-                                    // 上滑返回由子层在到达顶部时触发
-                                }
-
+                                ScreenState.Apps -> { /* 留给子层 */ }
                                 ScreenState.App -> { /* 不拦截 */ }
                                 ScreenState.Settings -> { /* 不拦截 */ }
                                 ScreenState.Stack -> {
-                                    // Stack 已废弃，自动跳到 Apps
                                     onStateChange(ScreenState.Apps)
                                 }
                             }
