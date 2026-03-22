@@ -21,6 +21,7 @@ import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_COLS
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_TOP_BLUR
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_TOP_FADE
+import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_ANIMATION_OVERRIDE
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_LAYOUT
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_LOW_RES
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_SPLASH_DELAY
@@ -46,6 +47,7 @@ class SettingsActivity : ComponentActivity() {
                 val blurEnabled = prefs?.get(KEY_BLUR) ?: true
                 val edgeBlurEnabled = prefs?.get(KEY_EDGE_BLUR) ?: false
                 val lowRes = prefs?.get(KEY_LOW_RES) ?: false
+                val animationOverrideEnabled = prefs?.get(KEY_ANIMATION_OVERRIDE) ?: true
                 val splash = prefs?.get(KEY_SPLASH_ICON) ?: true
                 val delay = prefs?.get(KEY_SPLASH_DELAY) ?: 500
                 val honeycombCols = prefs?.get(KEY_HONEYCOMB_COLS) ?: 4
@@ -59,6 +61,7 @@ class SettingsActivity : ComponentActivity() {
                     blurEnabled = blurEnabled,
                     edgeBlurEnabled = edgeBlurEnabled,
                     lowResIcons = lowRes,
+                    animationOverrideEnabled = animationOverrideEnabled,
                     splashIcon = splash,
                     splashDelay = delay,
                     honeycombCols = honeycombCols,
@@ -79,6 +82,7 @@ class SettingsActivity : ComponentActivity() {
                     },
                     onEdgeBlurToggle = { scope.launch { dataStore.edit { p -> p[KEY_EDGE_BLUR] = it && blurEnabled } } },
                     onLowResToggle = { scope.launch { dataStore.edit { p -> p[KEY_LOW_RES] = it } } },
+                    onAnimationOverrideToggle = { scope.launch { dataStore.edit { p -> p[KEY_ANIMATION_OVERRIDE] = it } } },
                     onSplashToggle = { scope.launch { dataStore.edit { p -> p[KEY_SPLASH_ICON] = it } } },
                     onSplashDelayChange = { scope.launch { dataStore.edit { p -> p[KEY_SPLASH_DELAY] = it } } },
                     onHoneycombColsChange = { scope.launch { dataStore.edit { p -> p[KEY_HONEYCOMB_COLS] = it } } },
@@ -93,6 +97,7 @@ class SettingsActivity : ComponentActivity() {
                                 p[KEY_BLUR] = true
                                 p[KEY_EDGE_BLUR] = false
                                 p[KEY_LOW_RES] = false
+                                p[KEY_ANIMATION_OVERRIDE] = true
                                 p[KEY_SPLASH_ICON] = true
                                 p[KEY_SPLASH_DELAY] = 500
                                 p[KEY_HONEYCOMB_COLS] = 4

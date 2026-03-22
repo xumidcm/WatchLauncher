@@ -32,6 +32,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_BLUR = booleanPreferencesKey("blur_enabled")
         val KEY_EDGE_BLUR = booleanPreferencesKey("edge_blur_enabled")
         val KEY_LOW_RES = booleanPreferencesKey("low_res_icons")
+        val KEY_ANIMATION_OVERRIDE = booleanPreferencesKey("animation_override_enabled")
         val KEY_SPLASH_ICON = booleanPreferencesKey("splash_icon")
         val KEY_SPLASH_DELAY = intPreferencesKey("splash_delay")
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
@@ -63,6 +64,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _lowResIcons = MutableStateFlow(false)
     val lowResIcons: StateFlow<Boolean> = _lowResIcons.asStateFlow()
+
+    private val _animationOverrideEnabled = MutableStateFlow(true)
+    val animationOverrideEnabled: StateFlow<Boolean> = _animationOverrideEnabled.asStateFlow()
 
     private val _splashDelay = MutableStateFlow(500)
     val splashDelay: StateFlow<Int> = _splashDelay.asStateFlow()
@@ -119,6 +123,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     _lowResIcons.value = it
                     appRepository.refresh(if (it) 64 else 128)
                 }
+                prefs[KEY_ANIMATION_OVERRIDE]?.let { _animationOverrideEnabled.value = it }
                 prefs[KEY_SPLASH_ICON]?.let { _splashIcon.value = it }
                 prefs[KEY_SPLASH_DELAY]?.let { _splashDelay.value = it.coerceIn(300, 1500) }
                 prefs[KEY_APP_ORDER]?.let { orderStr ->
@@ -141,14 +146,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _screenState.value = state
     }
 
-    fun openApp(appInfo: AppInfo, origin: Offset = Offset(0.5f, 0.5f)) {
+    fun openApp(appInfo: AppInfo, origin: Offset = Offset(0.5f, 0.5f), launchDelayMs: Long = _splashDelay.value.toLong()) {
         _currentApp.value = appInfo
         _appOpenOrigin.value = origin
         _screenState.value = ScreenState.App
 
         launchJob?.cancel()
         launchJob = viewModelScope.launch {
-            delay(_splashDelay.value.toLong())
+            delay(launchDelayMs)
             launchingExternalApp = true
             appRepository.launchApp(appInfo)
         }
@@ -220,6 +225,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { store.edit { it[KEY_LOW_RES] = enabled } }
     }
 
+    fun setAnimationOverrideEnabled(enabled: Boolean) {
+        _animationOverrideEnabled.value = enabled
+        viewModelScope.launch { store.edit { it[KEY_ANIMATION_OVERRIDE] = enabled } }
+    }
+
     fun setSplashIcon(enabled: Boolean) {
         _splashIcon.value = enabled
         viewModelScope.launch { store.edit { it[KEY_SPLASH_ICON] = enabled } }
@@ -285,6 +295,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _blurEnabled.value = true
         _edgeBlurEnabled.value = false
         _lowResIcons.value = false
+        _animationOverrideEnabled.value = true
         _splashIcon.value = true
         _splashDelay.value = 500
         _listIconSize.value = 48
@@ -301,6 +312,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 it[KEY_BLUR] = true
                 it[KEY_EDGE_BLUR] = false
                 it[KEY_LOW_RES] = false
+                it[KEY_ANIMATION_OVERRIDE] = true
                 it[KEY_SPLASH_ICON] = true
                 it[KEY_SPLASH_DELAY] = 500
                 it[KEY_LIST_ICON_SIZE] = 48

@@ -57,6 +57,10 @@ class LauncherActivity : ComponentActivity() {
 
     private lateinit var vm: LauncherViewModel
 
+    companion object {
+        private const val BASE_LAUNCH_MASK_DELAY_MS = 180L
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         CrashHandler(applicationContext).install()
@@ -81,15 +85,19 @@ class LauncherActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        if (::vm.isInitialized && vm.animationOverrideEnabled.value) {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(R.anim.launcher_return_cupertino_enter, R.anim.launcher_return_cupertino_exit)
+        }
         if (::vm.isInitialized) vm.onReturnToLauncher()
     }
 
     override fun onPause() {
         super.onPause()
-        @Suppress("DEPRECATION")
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        if (::vm.isInitialized && vm.animationOverrideEnabled.value) {
+            @Suppress("DEPRECATION")
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
     }
 }
 
@@ -99,6 +107,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val layoutMode by vm.layoutMode.collectAsState()
     val blurEnabled by vm.blurEnabled.collectAsState()
     val edgeBlurEnabled by vm.edgeBlurEnabled.collectAsState()
+    val animationOverrideEnabled by vm.animationOverrideEnabled.collectAsState()
     val apps by vm.apps.collectAsState()
     val appOpenOrigin by vm.appOpenOrigin.collectAsState()
     val splashIcon by vm.splashIcon.collectAsState()
@@ -120,11 +129,12 @@ fun LauncherScreen(vm: LauncherViewModel) {
 
     val useOrigin = screenState == ScreenState.App || isReturningFromApp
 
+    val showLaunchBackdrop = screenState == ScreenState.App && currentApp != null
     var showSplash by remember { mutableStateOf(false) }
-    LaunchedEffect(screenState, splashIcon, splashDelay) {
-        if (screenState == ScreenState.App && splashIcon) {
+    LaunchedEffect(screenState, splashIcon, splashDelay, currentApp) {
+        if (screenState == ScreenState.App && splashIcon && currentApp != null) {
             showSplash = false
-            delay((splashDelay * 0.7f).toLong())
+            delay(BASE_LAUNCH_MASK_DELAY_MS)
             showSplash = true
         } else {
             showSplash = false
@@ -177,7 +187,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         bottomBlurRadiusDp = honeycombBottomBlur,
                         topFadeRangeDp = honeycombTopFade,
                         bottomFadeRangeDp = honeycombBottomFade,
-                        onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
+                        onAppClick = { appInfo, origin ->
+                            val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
+                            vm.openApp(appInfo, origin, launchDelay)
+                        },
                         onReorder = { from, to -> vm.swapApps(from, to) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
@@ -187,7 +200,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         edgeBlurEnabled = edgeBlurEnabled,
                         suppressHeavyEffects = reduceLegacyDrawerEffects,
                         iconSize = listIconSize.dp,
-                        onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
+                        onAppClick = { appInfo, origin ->
+                            val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
+                            vm.openApp(appInfo, origin, launchDelay)
+                        },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                 }
@@ -208,9 +224,9 @@ fun LauncherScreen(vm: LauncherViewModel) {
             }
 
             AnimatedVisibility(
-                visible = showSplash && screenState == ScreenState.App && currentApp != null,
-                enter = fadeIn() + scaleIn(initialScale = 0.5f),
-                exit = fadeOut() + scaleOut(targetScale = 0.3f)
+                visible = showLaunchBackdrop,
+                enter = fadeIn(),
+                exit = fadeOut()
             ) {
                 Box(
                     modifier = Modifier
@@ -218,18 +234,27 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         .background(Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
-                    currentApp?.let { app ->
-                        Image(
-                            bitmap = app.cachedIcon,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(96.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
-                        )
+                    AnimatedVisibility(
+                        visible = showSplash && splashIcon && currentApp != null,
+                        enter = fadeIn() + scaleIn(initialScale = 0.5f),
+                        exit = fadeOut() + scaleOut(targetScale = 0.3f)
+                    ) {
+                        currentApp?.let { app ->
+                            Image(
+                                bitmap = app.cachedIcon,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(96.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
             }
+
+            /* legacy launch overlay animation kept for icon stage only */
+            /* removed duplicate full-screen backdrop composition */
 
             Box(
                 modifier = Modifier
@@ -259,6 +284,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     blurEnabled = blurEnabled,
                     edgeBlurEnabled = edgeBlurEnabled,
                     lowResIcons = vm.lowResIcons.collectAsState().value,
+                    animationOverrideEnabled = animationOverrideEnabled,
                     splashIcon = splashIcon,
                     splashDelay = splashDelay,
                     listIconSize = listIconSize,
@@ -272,6 +298,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onBlurToggle = { vm.setBlurEnabled(it) },
                     onEdgeBlurToggle = { vm.setEdgeBlurEnabled(it) },
                     onLowResToggle = { vm.setLowResIcons(it) },
+                    onAnimationOverrideToggle = { vm.setAnimationOverrideEnabled(it) },
                     onSplashToggle = { vm.setSplashIcon(it) },
                     onSplashDelayChange = { vm.setSplashDelay(it) },
                     onListIconSizeChange = { vm.setListIconSize(it) },

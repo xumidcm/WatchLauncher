@@ -18,7 +18,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Icon
@@ -39,11 +46,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.theme.WatchColors
+import kotlinx.coroutines.launch
 
 @Composable
 fun LauncherSettingsSheet(
@@ -51,6 +60,7 @@ fun LauncherSettingsSheet(
     blurEnabled: Boolean,
     edgeBlurEnabled: Boolean = false,
     lowResIcons: Boolean = false,
+    animationOverrideEnabled: Boolean = true,
     splashIcon: Boolean = true,
     splashDelay: Int = 500,
     listIconSize: Int = 48,
@@ -64,6 +74,7 @@ fun LauncherSettingsSheet(
     onBlurToggle: (Boolean) -> Unit,
     onEdgeBlurToggle: (Boolean) -> Unit = {},
     onLowResToggle: (Boolean) -> Unit = {},
+    onAnimationOverrideToggle: (Boolean) -> Unit = {},
     onSplashToggle: (Boolean) -> Unit = {},
     onSplashDelayChange: (Int) -> Unit = {},
     onListIconSizeChange: (Int) -> Unit = {},
@@ -81,6 +92,34 @@ fun LauncherSettingsSheet(
     val density = LocalDensity.current
     val context = LocalContext.current
     val isZh = rememberSystemIsChinese()
+    val overscroll = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+
+    val nestedScrollConnection = remember(listState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.Drag) return Offset.Zero
+                val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                if (available.y > 0f && atTop) {
+                    scope.launch { overscroll.snapTo((overscroll.value + available.y * 0.32f).coerceAtMost(140f)) }
+                    return Offset(0f, available.y)
+                }
+                if (overscroll.value > 0f && available.y < 0f) {
+                    scope.launch { overscroll.snapTo((overscroll.value + available.y).coerceAtLeast(0f)) }
+                    return Offset(0f, available.y)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (overscroll.value > 0f) {
+                    overscroll.animateTo(0f, spring(dampingRatio = 0.76f, stiffness = 430f))
+                    return available
+                }
+                return Velocity.Zero
+            }
+        }
+    }
 
     BoxWithConstraints(
         modifier = modifier
@@ -94,6 +133,8 @@ fun LauncherSettingsSheet(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
+                .graphicsLayer { translationY = overscroll.value }
                 .padding(top = 30.dp, start = 14.dp, end = 14.dp, bottom = 30.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -139,6 +180,16 @@ fun LauncherSettingsSheet(
             item("splash_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "splash_toggle" }, screenCenterY, screenHeightPx)
                 SettingToggle(tr(isZh, "启动遮罩", "Launch Overlay"), tr(isZh, "启动应用时显示居中图标", "Show the centered app icon while launching"), splashIcon, onSplashToggle, scale = scale)
+            }
+            item("animation_override_toggle") {
+                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "animation_override_toggle" }, screenCenterY, screenHeightPx)
+                SettingToggle(
+                    tr(isZh, "动画接管", "Animation Override"),
+                    tr(isZh, "关闭后交回系统默认过渡", "Disable to let the system handle transitions"),
+                    animationOverrideEnabled,
+                    onAnimationOverrideToggle,
+                    scale = scale
+                )
             }
             if (splashIcon) {
                 item("splash_delay") {

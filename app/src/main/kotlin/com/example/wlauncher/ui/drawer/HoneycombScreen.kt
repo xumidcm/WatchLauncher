@@ -230,7 +230,7 @@ fun HoneycombScreen(
                 val activePressKey = if (isDragged) appKey else pressedAppKey
 
                 key(appKey) {
-                    val targetNeighborSink = neighborPressOffset(
+                    val targetNeighborScale = neighborPressOffset(
                         appKey = appKey,
                         pressedAppKey = activePressKey,
                         current = gridPos,
@@ -239,10 +239,10 @@ fun HoneycombScreen(
                         iconSizePx = iconSizePx,
                         cellSize = cellSize
                     )
-                    val animatedNeighborSink by animateFloatAsState(
-                        targetValue = targetNeighborSink,
+                    val animatedNeighborScale by animateFloatAsState(
+                        targetValue = targetNeighborScale,
                         animationSpec = tween(durationMillis = 180),
-                        label = "neighbor_sink"
+                        label = "neighbor_scale"
                     )
                     AppBubble(
                         icon = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && blurEnabled && effectiveEdgeBlur && itemBlur > 0.5f) {
@@ -285,10 +285,10 @@ fun HoneycombScreen(
                                 val dy = pY - screenCenterY
                                 val dist = sqrt(dx * dx + dy * dy)
                                 val scale = fisheyeScale(dist, screenRadius * 1.65f, minScale = 0.58f)
-                                scaleX = scale
-                                scaleY = scale
+                                val neighborScale = 1f - animatedNeighborScale
+                                scaleX = scale * neighborScale
+                                scaleY = scale * neighborScale
                                 alpha = scale.coerceIn(0.24f, 1f)
-                                translationY += animatedNeighborSink
                             }
                             .platformBlur(itemBlur, blurEnabled && effectiveEdgeBlur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                     )
@@ -344,7 +344,7 @@ private fun neighborPressOffset(
     val ddy = current.y - pressedPos.y
     val distance = sqrt(ddx * ddx + ddy * ddy)
     val range = cellSize * 1.75f
-    return iconSizePx * 0.04f * (1f - distance / range).coerceIn(0f, 1f)
+    return 0.08f * (1f - distance / range).coerceIn(0f, 1f)
 }
 
 private fun findNearestHoneycombIndex(

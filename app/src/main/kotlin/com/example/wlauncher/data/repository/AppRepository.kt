@@ -7,6 +7,10 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ResolveInfo
 import android.graphics.Bitmap
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Shader
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import com.example.wlauncher.data.model.AppInfo
@@ -69,7 +73,9 @@ class AppRepository(private val context: Context) {
             .distinctBy { "${it.activityInfo.packageName}/${it.activityInfo.name}" }
             .map { ri ->
                 val iconDrawable = ri.loadIcon(pm)
-                val iconBitmap = iconDrawable.toBitmap(iconSize, iconSize, Bitmap.Config.ARGB_8888)
+                val iconBitmap = createCircularBitmap(
+                    iconDrawable.toBitmap(iconSize, iconSize, Bitmap.Config.ARGB_8888)
+                )
                 val blurredBitmap = createSoftenedBitmap(iconBitmap)
                 AppInfo(
                     label = ri.loadLabel(pm).toString(),
@@ -121,6 +127,19 @@ class AppRepository(private val context: Context) {
             (source.height * 0.25f).toInt().coerceAtLeast(1),
             true
         )
-        return Bitmap.createScaledBitmap(downscaled, source.width, source.height, true)
+        return createCircularBitmap(
+            Bitmap.createScaledBitmap(downscaled, source.width, source.height, true)
+        )
+    }
+
+    private fun createCircularBitmap(source: Bitmap): Bitmap {
+        val output = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+        }
+        val radius = minOf(source.width, source.height) / 2f
+        canvas.drawCircle(source.width / 2f, source.height / 2f, radius, paint)
+        return output
     }
 }

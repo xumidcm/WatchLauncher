@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wlauncher.data.model.AppInfo
+import com.example.wlauncher.ui.anim.platformBlur
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -122,6 +123,7 @@ fun ListDrawerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .nestedScroll(nestedScrollConnection)
+                .platformBlur(16f, longPressedApp != null && blurEnabled && !suppressHeavyEffects)
         ) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val screenCenterY = screenHeightPx / 2f
