@@ -1,6 +1,7 @@
 package com.example.wlauncher.ui.drawer
 
 import android.os.Build
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -9,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -26,11 +28,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,6 +48,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -69,6 +73,7 @@ fun ListDrawerScreen(
     suppressHeavyEffects: Boolean = false,
     iconSize: Dp = 48.dp,
     onAppClick: (AppInfo, Offset) -> Unit,
+    onReorder: (Int, Int) -> Unit = { _, _ -> },
     onLongClick: (AppInfo) -> Unit = {},
     onScrollToTop: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -76,57 +81,113 @@ fun ListDrawerScreen(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val context = LocalContext.current
-    var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
-    val itemPositions = remember { mutableMapOf<Int, Float>() }
-    val overscroll = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val effectiveEdgeBlur = edgeBlurEnabled && !suppressHeavyEffects
 
-    val nestedScrollConnection = remember(listState) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.Drag) return Offset.Zero
-                val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                if (available.y > 0f && atTop) {
-                    scope.launch {
-                        overscroll.snapTo((overscroll.value + available.y * 0.35f).coerceAtMost(160f))
-                    }
-                    return Offset(0f, available.y)
-                }
-                if (overscroll.value > 0f && available.y < 0f) {
-                    scope.launch {
-                        overscroll.snapTo((overscroll.value + available.y).coerceAtLeast(0f))
-                    }
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                if ((overscroll.value > 80f || available.y > 1200f) && atTop) {
-                    overscroll.snapTo(0f)
-                    onScrollToTop()
-                    return available
-                }
-                if (overscroll.value > 0f) {
-                    overscroll.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 460f))
-                    return available
-                }
-                return Velocity.Zero
-            }
-        }
-    }
+    var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
+    val itemCenters = remember { mutableMapOf<Int, Float>() }
+    val itemHeights = remember { mutableMapOf<Int, Float>() }
+    val overscroll = remember { Animatable(0f) }
+    var dragFromIndex by remember { mutableStateOf<Int?>(null) }
+    var dragCurrentIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
 
     Box(modifier = modifier.fillMaxSize()) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .nestedScroll(nestedScrollConnection)
+                .nestedScroll(
+                    remember(listState, dragFromIndex) {
+                        object : NestedScrollConnection {
+                            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                if (source != NestedScrollSource.Drag || dragFromIndex != null) return Offset.Zero
+                                return consumeListOverscroll(
+                                    availableY = available.y,
+                                    listState = listState,
+                                    overscroll = overscroll,
+                                    scope = scope
+                                )
+                            }
+
+                            override fun onPostScroll(
+                                consumed: Offset,
+                                available: Offset,
+                                source: NestedScrollSource
+                            ): Offset {
+                                if (source != NestedScrollSource.Drag || dragFromIndex != null) return Offset.Zero
+                                return consumeListOverscroll(
+                                    availableY = available.y,
+                                    listState = listState,
+                                    overscroll = overscroll,
+                                    scope = scope
+                                )
+                            }
+
+                            override suspend fun onPreFling(available: Velocity): Velocity {
+                                if (dragFromIndex != null) return Velocity.Zero
+                                val atTop = !listState.canScrollBackward
+                                if ((overscroll.value > 80f || available.y > 1200f) && atTop) {
+                                    overscroll.snapTo(0f)
+                                    onScrollToTop()
+                                    return available
+                                }
+                                if (overscroll.value != 0f) {
+                                    overscroll.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 460f))
+                                    return available
+                                }
+                                return Velocity.Zero
+                            }
+                        }
+                    }
+                )
                 .platformBlur(16f, longPressedApp != null && blurEnabled && !suppressHeavyEffects)
+                .pointerInput(apps) {
+                    val maxDistancePx = with(density) { 72.dp.toPx() }
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { startOffset ->
+                            val startIndex = findNearestListIndex(startOffset.y, itemCenters, maxDistancePx)
+                            if (startIndex != null) {
+                                dragFromIndex = startIndex
+                                dragCurrentIndex = startIndex
+                                dragOffsetY = 0f
+                                vibrateHaptic(context)
+                            }
+                        },
+                        onDrag = { change, dragAmount ->
+                            val fromIndex = dragFromIndex ?: return@detectDragGesturesAfterLongPress
+                            change.consume()
+                            dragOffsetY += dragAmount.y
+                            val anchorCenter = itemCenters[fromIndex] ?: change.position.y
+                            val nextCenter = anchorCenter + dragOffsetY
+                            dragCurrentIndex = findNearestListIndex(
+                                pointerY = nextCenter,
+                                itemCenters = itemCenters,
+                                maxDistance = Float.MAX_VALUE
+                            ) ?: dragCurrentIndex
+                        },
+                        onDragEnd = {
+                            val from = dragFromIndex
+                            val to = dragCurrentIndex
+                            if (from != null && to != null && from != to) {
+                                onReorder(from, to)
+                            }
+                            dragFromIndex = null
+                            dragCurrentIndex = null
+                            dragOffsetY = 0f
+                        },
+                        onDragCancel = {
+                            dragFromIndex = null
+                            dragCurrentIndex = null
+                            dragOffsetY = 0f
+                        }
+                    )
+                }
         ) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val screenCenterY = screenHeightPx / 2f
+            val estimatedItemHeight = iconSize.coerceAtLeast(48.dp) + 20.dp
+            val centeredPadding = ((maxHeight - estimatedItemHeight) / 2f).coerceAtLeast(0.dp)
+            val dragRowShift = dragFromIndex?.let { itemHeights[it] } ?: with(density) { estimatedItemHeight.toPx() }
 
             LazyColumn(
                 state = listState,
@@ -135,54 +196,74 @@ fun ListDrawerScreen(
                     .graphicsLayer { translationY = overscroll.value }
                     .background(Color.Black),
                 contentPadding = PaddingValues(
-                    top = 40.dp,
-                    bottom = 60.dp,
+                    top = centeredPadding,
+                    bottom = centeredPadding,
                     start = 12.dp,
                     end = 12.dp
                 ),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                itemsIndexed(apps, key = { _, app -> "${app.packageName}/${app.activityName}" }) { index, app ->
+                itemsIndexed(apps, key = { _, app -> app.componentKey }) { index, app ->
                     val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
                     val itemScale = computeItemScale(itemInfo, screenCenterY, screenHeightPx)
-                    val useSoftBlur = blurEnabled && effectiveEdgeBlur && Build.VERSION.SDK_INT < Build.VERSION_CODES.S && isNearBottom(itemInfo, screenHeightPx)
-                    val interactionSource = remember(app.packageName, app.activityName) { MutableInteractionSource() }
+                    val useSoftBlur = blurEnabled &&
+                        effectiveEdgeBlur &&
+                        Build.VERSION.SDK_INT < Build.VERSION_CODES.S &&
+                        isNearBottom(itemInfo, screenHeightPx)
+                    val interactionSource = remember(app.componentKey) { MutableInteractionSource() }
                     val isPressed by interactionSource.collectIsPressedAsState()
+                    val isDragged = dragFromIndex == index
+                    val displacedTarget = listDisplacementForIndex(
+                        index = index,
+                        dragFromIndex = dragFromIndex,
+                        dragCurrentIndex = dragCurrentIndex,
+                        dragRowShift = dragRowShift
+                    )
+                    val animatedDisplacement by animateFloatAsState(
+                        targetValue = if (isDragged) dragOffsetY else displacedTarget,
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
+                        label = "list_drag_displacement"
+                    )
                     val pressedScale by animateFloatAsState(
-                        targetValue = if (isPressed) 0.96f else 1f,
+                        targetValue = if (isPressed || isDragged) 0.97f else 1f,
                         animationSpec = tween(durationMillis = 170),
                         label = "list_press_scale"
                     )
                     val pressedOverlay by animateFloatAsState(
-                        targetValue = if (isPressed) 0.10f else 0f,
+                        targetValue = if (isPressed || isDragged) 0.10f else 0f,
                         animationSpec = tween(durationMillis = 170),
                         label = "list_press_overlay"
                     )
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onGloballyPositioned { coords ->
                                 val posY = coords.positionInRoot().y
-                                itemPositions[index] = posY + coords.size.height / 2f
+                                itemCenters[index] = posY + coords.size.height / 2f
+                                itemHeights[index] = coords.size.height.toFloat()
                             }
                             .graphicsLayer {
                                 val targetScale = itemScale * pressedScale
+                                translationY = animatedDisplacement
                                 scaleX = targetScale
                                 scaleY = targetScale
-                                alpha = itemScale.coerceIn(0.3f, 1f)
+                                alpha = if (isDragged) 0.96f else itemScale.coerceIn(0.3f, 1f)
                             }
                             .background(Color.Black.copy(alpha = pressedOverlay), RoundedCornerShape(18.dp))
                             .combinedClickable(
                                 interactionSource = interactionSource,
                                 indication = null,
                                 onClick = {
-                                    val centerY = itemPositions[index] ?: screenCenterY
+                                    val centerY = itemCenters[index] ?: screenCenterY
                                     onAppClick(app, Offset(0.15f, centerY / screenHeightPx))
                                 },
                                 onLongClick = {
-                                    vibrateHaptic(context)
-                                    onLongClick(app)
-                                    longPressedApp = app
+                                    if (dragFromIndex == null) {
+                                        vibrateHaptic(context)
+                                        onLongClick(app)
+                                        longPressedApp = app
+                                    }
                                 }
                             )
                             .padding(horizontal = 16.dp, vertical = 10.dp),
@@ -210,6 +291,13 @@ fun ListDrawerScreen(
 
         Box(
             modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(56.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black, Color.Transparent)))
+        )
+        Box(
+            modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .height(60.dp)
@@ -220,6 +308,58 @@ fun ListDrawerScreen(
     longPressedApp?.let { app ->
         AppShortcutOverlay(app = app, blurEnabled = blurEnabled, onDismiss = { longPressedApp = null })
     }
+}
+
+private fun consumeListOverscroll(
+    availableY: Float,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    overscroll: Animatable<Float, AnimationVector1D>,
+    scope: kotlinx.coroutines.CoroutineScope
+): Offset {
+    val atTop = !listState.canScrollBackward
+    val atBottom = !listState.canScrollForward
+    val current = overscroll.value
+    val next = when {
+        availableY > 0f && atTop -> (current + availableY * 0.35f).coerceAtMost(180f)
+        availableY < 0f && atBottom -> (current + availableY * 0.35f).coerceAtLeast(-180f)
+        current > 0f && availableY < 0f -> (current + availableY).coerceAtLeast(0f)
+        current < 0f && availableY > 0f -> (current + availableY).coerceAtMost(0f)
+        else -> current
+    }
+    if (next == current) return Offset.Zero
+    scope.launch { overscroll.snapTo(next) }
+    return Offset(0f, availableY)
+}
+
+private fun listDisplacementForIndex(
+    index: Int,
+    dragFromIndex: Int?,
+    dragCurrentIndex: Int?,
+    dragRowShift: Float
+): Float {
+    if (dragFromIndex == null || dragCurrentIndex == null || dragFromIndex == dragCurrentIndex) return 0f
+    return when {
+        dragCurrentIndex > dragFromIndex && index in (dragFromIndex + 1)..dragCurrentIndex -> -dragRowShift
+        dragCurrentIndex < dragFromIndex && index in dragCurrentIndex until dragFromIndex -> dragRowShift
+        else -> 0f
+    }
+}
+
+private fun findNearestListIndex(
+    pointerY: Float,
+    itemCenters: Map<Int, Float>,
+    maxDistance: Float
+): Int? {
+    var bestIndex: Int? = null
+    var bestDistance = Float.MAX_VALUE
+    itemCenters.forEach { (index, centerY) ->
+        val distance = abs(centerY - pointerY)
+        if (distance < bestDistance && distance <= maxDistance) {
+            bestDistance = distance
+            bestIndex = index
+        }
+    }
+    return bestIndex
 }
 
 private fun computeItemScale(

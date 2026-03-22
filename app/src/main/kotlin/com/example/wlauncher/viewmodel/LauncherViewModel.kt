@@ -286,7 +286,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (fromIndex in current.indices && toIndex in current.indices) {
             val item = current.removeAt(fromIndex)
             current.add(toIndex, item)
-            setAppOrder(current.map { it.packageName })
+            setAppOrder(current.map { it.componentKey })
         }
     }
 

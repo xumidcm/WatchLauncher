@@ -50,9 +50,8 @@ class AppRepository(private val context: Context) {
     private fun reorder() {
         if (customOrder.isEmpty()) return
         val current = _apps.value
-        val orderMap = customOrder.withIndex().associate { (i, pkg) -> pkg to i }
         _apps.value = current.sortedWith(
-            compareBy<AppInfo> { orderMap[it.packageName] ?: Int.MAX_VALUE }
+            compareBy<AppInfo> { orderRank(it) }
                 .thenBy { it.label.lowercase() }
         )
     }
@@ -88,9 +87,8 @@ class AppRepository(private val context: Context) {
             }
             .let { list ->
                 if (customOrder.isNotEmpty()) {
-                    val orderMap = customOrder.withIndex().associate { (i, pkg) -> pkg to i }
                     list.sortedWith(
-                        compareBy<AppInfo> { orderMap[it.packageName] ?: Int.MAX_VALUE }
+                        compareBy<AppInfo> { orderRank(it) }
                             .thenBy { it.label.lowercase() }
                     )
                 } else {
@@ -141,5 +139,14 @@ class AppRepository(private val context: Context) {
         val radius = minOf(source.width, source.height) / 2f
         canvas.drawCircle(source.width / 2f, source.height / 2f, radius, paint)
         return output
+    }
+
+    private fun orderRank(app: AppInfo): Int {
+        if (customOrder.isEmpty()) return Int.MAX_VALUE
+        val exactIndex = customOrder.indexOf(app.componentKey)
+        if (exactIndex >= 0) return exactIndex
+        val legacyIndex = customOrder.indexOf(app.packageName)
+        if (legacyIndex >= 0) return legacyIndex
+        return Int.MAX_VALUE
     }
 }

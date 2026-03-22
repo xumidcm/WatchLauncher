@@ -85,7 +85,7 @@ class LauncherActivity : ComponentActivity() {
         super.onResume()
         if (::vm.isInitialized && vm.animationOverrideEnabled.value) {
             @Suppress("DEPRECATION")
-            overridePendingTransition(R.anim.launcher_return_cupertino_enter, R.anim.launcher_return_cupertino_exit)
+            overridePendingTransition(android.R.anim.fade_in, R.anim.launcher_return_cupertino_exit)
         }
         if (::vm.isInitialized) vm.onReturnToLauncher()
     }
@@ -202,6 +202,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                             val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
                             vm.openApp(appInfo, origin, launchDelay)
                         },
+                        onReorder = { from, to -> vm.swapApps(from, to) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                 }

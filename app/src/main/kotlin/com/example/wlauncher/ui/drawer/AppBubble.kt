@@ -34,6 +34,9 @@ fun AppBubble(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     forcePressed: Boolean = false,
+    pressScaleTarget: Float = 0.9f,
+    pressAnimationDelayMillis: Int = 0,
+    pressAnimationDurationMillis: Int = 180,
     onPressedChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -41,13 +44,19 @@ fun AppBubble(
     val isPressed by interactionSource.collectIsPressedAsState()
     val activePressed = isPressed || forcePressed
     val pressedScale by animateFloatAsState(
-        targetValue = if (activePressed) 0.9f else 1f,
-        animationSpec = tween(durationMillis = 180),
+        targetValue = if (activePressed) pressScaleTarget else 1f,
+        animationSpec = tween(
+            durationMillis = pressAnimationDurationMillis,
+            delayMillis = if (activePressed) pressAnimationDelayMillis else 0
+        ),
         label = "bubble_scale"
     )
     val pressedOverlayAlpha by animateFloatAsState(
         targetValue = if (activePressed) 0.16f else 0f,
-        animationSpec = tween(durationMillis = 180),
+        animationSpec = tween(
+            durationMillis = pressAnimationDurationMillis,
+            delayMillis = if (activePressed) pressAnimationDelayMillis else 0
+        ),
         label = "bubble_overlay"
     )
 

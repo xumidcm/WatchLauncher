@@ -39,16 +39,25 @@ class CrashActivity : ComponentActivity() {
         val crashInfo = intent.getStringExtra("crash_info") ?: readCache("crash_info.txt", "Unknown error")
         val crashBrief = intent.getStringExtra("crash_brief") ?: readCache("crash_brief.txt", "Unknown")
         val appInfo = intent.getStringExtra("crash_app_info") ?: readCache("crash_app_info.txt", "Unknown")
+        val fullCrashLog = buildString {
+            appendLine(appInfo)
+            appendLine()
+            appendLine(crashBrief)
+            appendLine()
+            append(crashInfo)
+        }.trim()
         setContent {
             val isZh = remember { Locale.getDefault().language.startsWith("zh") }
             CrashScreen(
                 isZh = isZh,
                 crashInfo = crashInfo,
-                crashBrief = crashBrief,
                 appInfo = appInfo,
-                onCopyDetail = { copyText(crashInfo, if (isZh) "已复制详细信息" else "Copied details") },
-                onCopyBrief = { copyText(crashBrief, if (isZh) "已复制错误摘要" else "Copied error summary") },
-                onCopyAppInfo = { copyText(appInfo, if (isZh) "已复制应用信息" else "Copied app info") },
+                onCopyLog = {
+                    copyText(
+                        fullCrashLog,
+                        if (isZh) "已复制详细崩溃日志" else "Copied full crash log"
+                    )
+                },
                 onRestart = { restart() },
                 onOpenSettings = { openSettings() }
             )
@@ -85,11 +94,8 @@ class CrashActivity : ComponentActivity() {
 fun CrashScreen(
     isZh: Boolean,
     crashInfo: String,
-    crashBrief: String,
     appInfo: String,
-    onCopyDetail: () -> Unit,
-    onCopyBrief: () -> Unit,
-    onCopyAppInfo: () -> Unit,
+    onCopyLog: () -> Unit,
     onRestart: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -101,14 +107,18 @@ fun CrashScreen(
     ) {
         Spacer(modifier = Modifier.height(60.dp))
         Text(
-            text = if (isZh) "哎呀，崩溃了" else "Oops, it crashed",
+            text = if (isZh) "哎呀，应用崩溃了" else "Oops, it crashed",
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF111111)
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = if (isZh) "请将日志复制给开发者，并提供导致错误的操作步骤" else "Copy the logs for the developer and include the steps that caused the crash.",
+            text = if (isZh) {
+                "请复制完整日志给开发者，并附上触发崩溃的操作步骤。"
+            } else {
+                "Copy the logs for the developer and include the steps that caused the crash."
+            },
             fontSize = 14.sp,
             color = Color(0xFF666666),
             lineHeight = 20.sp
@@ -132,15 +142,26 @@ fun CrashScreen(
         }
 
         Spacer(modifier = Modifier.height(18.dp))
-        CrashButton(if (isZh) "复制详细信息" else "Copy details", Color(0xFFFF4D73), Color.White, onCopyDetail)
+        CrashButton(
+            text = if (isZh) "复制详细崩溃日志" else "Copy full crash log",
+            bg = Color(0xFFFF4D73),
+            fg = Color.White,
+            onClick = onCopyLog
+        )
         Spacer(modifier = Modifier.height(10.dp))
-        CrashButton(if (isZh) "复制错误摘要" else "Copy error summary", Color(0xFFF3F3F3), Color(0xFFFF4D73), onCopyBrief)
+        CrashButton(
+            text = if (isZh) "重启应用" else "Restart app",
+            bg = Color(0xFFF3F3F3),
+            fg = Color(0xFFFF4D73),
+            onClick = onRestart
+        )
         Spacer(modifier = Modifier.height(10.dp))
-        CrashButton(if (isZh) "复制应用信息" else "Copy app info", Color(0xFFF3F3F3), Color(0xFFFF4D73), onCopyAppInfo)
-        Spacer(modifier = Modifier.height(10.dp))
-        CrashButton(if (isZh) "重启软件" else "Restart app", Color(0xFFF3F3F3), Color(0xFFFF4D73), onRestart)
-        Spacer(modifier = Modifier.height(10.dp))
-        CrashButton(if (isZh) "应用详情" else "App settings", Color(0xFFF3F3F3), Color(0xFFFF4D73), onOpenSettings)
+        CrashButton(
+            text = if (isZh) "应用详情" else "App settings",
+            bg = Color(0xFFF3F3F3),
+            fg = Color(0xFFFF4D73),
+            onClick = onOpenSettings
+        )
         Spacer(modifier = Modifier.height(24.dp))
     }
 }

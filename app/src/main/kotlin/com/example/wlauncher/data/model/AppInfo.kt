@@ -10,4 +10,7 @@ data class AppInfo(
     val icon: Drawable,
     val cachedIcon: ImageBitmap,
     val cachedBlurredIcon: ImageBitmap
-)
+) {
+    val componentKey: String
+        get() = "$packageName/$activityName"
+}
