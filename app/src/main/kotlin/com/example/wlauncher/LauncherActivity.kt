@@ -4,8 +4,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
 import androidx.activity.addCallback
+import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,15 +18,28 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.wlauncher.ui.anim.appListLayerValues
+import com.example.wlauncher.ui.anim.controlCenterLayerValues
+import com.example.wlauncher.ui.anim.faceLayerValues
+import com.example.wlauncher.ui.anim.notificationLayerValues
+import com.example.wlauncher.ui.anim.scaleBlurAlpha
+import com.example.wlauncher.ui.anim.stackLayerValues
 import com.example.wlauncher.ui.controlcenter.ControlCenterLayer
 import com.example.wlauncher.ui.drawer.HoneycombScreen
 import com.example.wlauncher.ui.drawer.ListDrawerScreen
@@ -37,10 +50,8 @@ import com.example.wlauncher.ui.navigation.ScreenState
 import com.example.wlauncher.ui.notification.NotificationLayer
 import com.example.wlauncher.ui.settings.LauncherSettingsSheet
 import com.example.wlauncher.ui.smartstack.SmartStackLayer
-import com.example.wlauncher.ui.anim.*
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel
-import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.delay
 
 class LauncherActivity : ComponentActivity() {
@@ -88,6 +99,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val screenState by vm.screenState.collectAsState()
     val layoutMode by vm.layoutMode.collectAsState()
     val blurEnabled by vm.blurEnabled.collectAsState()
+    val edgeBlurEnabled by vm.edgeBlurEnabled.collectAsState()
     val apps by vm.apps.collectAsState()
     val appOpenOrigin by vm.appOpenOrigin.collectAsState()
     val splashIcon by vm.splashIcon.collectAsState()
@@ -95,21 +107,22 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val currentApp by vm.currentApp.collectAsState()
     val listIconSize by vm.listIconSize.collectAsState()
     val honeycombCols by vm.honeycombCols.collectAsState()
+    val honeycombTopBlur by vm.honeycombTopBlur.collectAsState()
+    val honeycombBottomBlur by vm.honeycombBottomBlur.collectAsState()
+    val honeycombTopFade by vm.honeycombTopFade.collectAsState()
+    val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
 
-    // 跟踪上一个状态，判断是否从 App 返回
     var prevState by remember { mutableStateOf(screenState) }
     val isReturningFromApp = prevState == ScreenState.App && screenState == ScreenState.Apps
     LaunchedEffect(screenState) { prevState = screenState }
 
-    // 只在打开/返回应用时使用图标原点，Face↔Apps 固定中心缩放
     val useOrigin = screenState == ScreenState.App || isReturningFromApp
 
-    // 启动遮罩延迟显示
     var showSplash by remember { mutableStateOf(false) }
-    LaunchedEffect(screenState) {
+    LaunchedEffect(screenState, splashIcon, splashDelay) {
         if (screenState == ScreenState.App && splashIcon) {
             showSplash = false
-            delay((splashDelay * 0.7f).toLong()) // 等 appListLayer 缩放飞出后
+            delay((splashDelay * 0.7f).toLong())
             showSplash = true
         } else {
             showSplash = false
@@ -129,7 +142,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
             onStateChange = { vm.setState(it) },
             modifier = Modifier.fillMaxSize()
         ) {
-            // Layer 1: Watch Face
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -140,7 +152,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) { WatchFaceLayer() }
 
-            // Layer 2: App Drawer
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -155,13 +166,19 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     LayoutMode.Honeycomb -> HoneycombScreen(
                         apps = apps,
                         blurEnabled = blurEnabled,
+                        edgeBlurEnabled = edgeBlurEnabled,
                         narrowCols = honeycombCols,
+                        topBlurRadiusDp = honeycombTopBlur,
+                        bottomBlurRadiusDp = honeycombBottomBlur,
+                        topFadeRangeDp = honeycombTopFade,
+                        bottomFadeRangeDp = honeycombBottomFade,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                     LayoutMode.List -> ListDrawerScreen(
                         apps = apps,
                         blurEnabled = blurEnabled,
+                        edgeBlurEnabled = edgeBlurEnabled,
                         iconSize = listIconSize.dp,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
@@ -169,37 +186,44 @@ fun LauncherScreen(vm: LauncherViewModel) {
                 }
             }
 
-            // 动画过渡中阻止触摸（覆盖在 drawer 上层）
             if (screenState == ScreenState.App) {
-                Box(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) { awaitPointerEvent().changes.forEach { it.consume() } }
-                    }
-                })
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    awaitPointerEvent().changes.forEach { it.consume() }
+                                }
+                            }
+                        }
+                )
             }
 
-            // 启动遮罩 — 黑场 + 居中应用图标
             AnimatedVisibility(
                 visible = showSplash && screenState == ScreenState.App && currentApp != null,
                 enter = fadeIn() + scaleIn(initialScale = 0.5f),
                 exit = fadeOut() + scaleOut(targetScale = 0.3f)
             ) {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(Color.Black),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black),
                     contentAlignment = Alignment.Center
                 ) {
                     currentApp?.let { app ->
                         Image(
                             bitmap = app.cachedIcon,
                             contentDescription = null,
-                            modifier = Modifier.size(96.dp).clip(CircleShape),
+                            modifier = Modifier
+                                .size(96.dp)
+                                .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
                     }
                 }
             }
 
-            // Layer 3: Smart Stack
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -210,7 +234,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) { SmartStackLayer() }
 
-            // Layer 4: Notifications
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -221,7 +244,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) { NotificationLayer() }
 
-            // Layer 5: Control Center
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -232,29 +254,32 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     )
             ) { ControlCenterLayer() }
 
-            // Layer 6: Settings
             if (screenState == ScreenState.Settings) {
-                val iconPackState by vm.iconPack.collectAsState()
-                var iconPackRefresh by remember { mutableIntStateOf(0) }
-                val iconPacks = remember(iconPackRefresh) { vm.getIconPackManager().getInstalledIconPacks().map { it.packageName to it.label } }
                 LauncherSettingsSheet(
                     currentLayout = layoutMode,
                     blurEnabled = blurEnabled,
+                    edgeBlurEnabled = edgeBlurEnabled,
                     lowResIcons = vm.lowResIcons.collectAsState().value,
                     splashIcon = splashIcon,
                     splashDelay = splashDelay,
                     listIconSize = listIconSize,
                     honeycombCols = honeycombCols,
-                    iconPackName = iconPackState,
-                    iconPacks = iconPacks,
+                    honeycombTopBlur = honeycombTopBlur,
+                    honeycombBottomBlur = honeycombBottomBlur,
+                    honeycombTopFade = honeycombTopFade,
+                    honeycombBottomFade = honeycombBottomFade,
                     onLayoutChange = { vm.setLayoutMode(it) },
                     onBlurToggle = { vm.setBlurEnabled(it) },
+                    onEdgeBlurToggle = { vm.setEdgeBlurEnabled(it) },
                     onLowResToggle = { vm.setLowResIcons(it) },
                     onSplashToggle = { vm.setSplashIcon(it) },
                     onSplashDelayChange = { vm.setSplashDelay(it) },
                     onListIconSizeChange = { vm.setListIconSize(it) },
                     onHoneycombColsChange = { vm.setHoneycombCols(it) },
-                    onIconPackChange = { vm.setIconPack(it) },
+                    onHoneycombTopBlurChange = { vm.setHoneycombTopBlur(it) },
+                    onHoneycombBottomBlurChange = { vm.setHoneycombBottomBlur(it) },
+                    onHoneycombTopFadeChange = { vm.setHoneycombTopFade(it) },
+                    onHoneycombBottomFadeChange = { vm.setHoneycombBottomFade(it) },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )
             }
