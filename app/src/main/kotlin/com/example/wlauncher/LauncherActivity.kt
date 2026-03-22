@@ -112,6 +112,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
     val showNotification by vm.showNotification.collectAsState()
     val layerBlurEnabled = blurEnabled && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || screenState != ScreenState.App)
+    val reduceLegacyDrawerEffects = Build.VERSION.SDK_INT < Build.VERSION_CODES.S && screenState == ScreenState.App
 
     var prevState by remember { mutableStateOf(screenState) }
     val isReturningFromApp = prevState == ScreenState.App && screenState == ScreenState.Apps
@@ -170,18 +171,21 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         apps = apps,
                         blurEnabled = blurEnabled,
                         edgeBlurEnabled = edgeBlurEnabled,
+                        suppressHeavyEffects = reduceLegacyDrawerEffects,
                         narrowCols = honeycombCols,
                         topBlurRadiusDp = honeycombTopBlur,
                         bottomBlurRadiusDp = honeycombBottomBlur,
                         topFadeRangeDp = honeycombTopFade,
                         bottomFadeRangeDp = honeycombBottomFade,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
+                        onReorder = { from, to -> vm.swapApps(from, to) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                     LayoutMode.List -> ListDrawerScreen(
                         apps = apps,
                         blurEnabled = blurEnabled,
                         edgeBlurEnabled = edgeBlurEnabled,
+                        suppressHeavyEffects = reduceLegacyDrawerEffects,
                         iconSize = listIconSize.dp,
                         onAppClick = { appInfo, origin -> vm.openApp(appInfo, origin) },
                         onScrollToTop = { vm.setState(ScreenState.Face) }

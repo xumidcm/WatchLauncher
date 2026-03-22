@@ -7,6 +7,7 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -43,12 +44,14 @@ fun HoneycombScreen(
     apps: List<AppInfo>,
     blurEnabled: Boolean = true,
     edgeBlurEnabled: Boolean = false,
+    suppressHeavyEffects: Boolean = false,
     narrowCols: Int = 4,
     topBlurRadiusDp: Int = 12,
     bottomBlurRadiusDp: Int = 12,
     topFadeRangeDp: Int = 56,
     bottomFadeRangeDp: Int = 56,
     onAppClick: (AppInfo, Offset) -> Unit,
+    onReorder: (Int, Int) -> Unit = { _, _ -> },
     onLongClick: (AppInfo) -> Unit = {},
     onScrollToTop: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -56,6 +59,10 @@ fun HoneycombScreen(
     val context = LocalContext.current
     var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
     var pressedAppKey by remember { mutableStateOf<String?>(null) }
+    var dragFromIndex by remember { mutableStateOf<Int?>(null) }
+    var dragCurrentIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
+    val effectiveEdgeBlur = edgeBlurEnabled && !suppressHeavyEffects
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val density = LocalDensity.current
@@ -89,12 +96,68 @@ fun HoneycombScreen(
 
         val scrollOffset = remember { Animatable(0f) }
         val scope = rememberCoroutineScope()
-        val overlayBlurActive = longPressedApp != null && blurEnabled
+        val overlayBlurActive = longPressedApp != null && blurEnabled && !suppressHeavyEffects
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .platformBlur(16f, overlayBlurActive)
+                .pointerInput(apps, positions, scrollOffset.value) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { startOffset ->
+                            val startIndex = findNearestHoneycombIndex(
+                                pointer = startOffset,
+                                positions = positions,
+                                screenCenterX = screenCenterX,
+                                screenCenterY = screenCenterY + scrollOffset.value,
+                                maxDistance = iconSizePx * 0.7f
+                            )
+                            if (startIndex != null) {
+                                dragFromIndex = startIndex
+                                dragCurrentIndex = startIndex
+                                dragOffset = Offset.Zero
+                                pressedAppKey = apps.getOrNull(startIndex)?.let { "${it.packageName}/${it.activityName}" }
+                                vibrateHaptic(context)
+                            }
+                        },
+                        onDrag = { change, dragAmount ->
+                            val fromIndex = dragFromIndex ?: return@detectDragGesturesAfterLongPress
+                            change.consume()
+                            dragOffset += Offset(dragAmount.x, dragAmount.y)
+                            val dragTarget = findNearestHoneycombIndex(
+                                pointer = dragPointerCenter(
+                                    index = fromIndex,
+                                    positions = positions,
+                                    screenCenterX = screenCenterX,
+                                    screenCenterY = screenCenterY + scrollOffset.value,
+                                    dragOffset = dragOffset
+                                ),
+                                positions = positions,
+                                screenCenterX = screenCenterX,
+                                screenCenterY = screenCenterY + scrollOffset.value,
+                                maxDistance = cellSize * 0.95f
+                            )
+                            dragCurrentIndex = dragTarget ?: fromIndex
+                        },
+                        onDragEnd = {
+                            val from = dragFromIndex
+                            val to = dragCurrentIndex
+                            if (from != null && to != null && from != to) {
+                                onReorder(from, to)
+                            }
+                            dragFromIndex = null
+                            dragCurrentIndex = null
+                            dragOffset = Offset.Zero
+                            pressedAppKey = null
+                        },
+                        onDragCancel = {
+                            dragFromIndex = null
+                            dragCurrentIndex = null
+                            dragOffset = Offset.Zero
+                            pressedAppKey = null
+                        }
+                    )
+                }
                 .pointerInput(Unit) {
                     val velocityTracker = VelocityTracker()
                     detectDragGestures(
@@ -163,11 +226,13 @@ fun HoneycombScreen(
                 val bottomBlur = bottomStrength * bottomBlurRadiusDp
                 val itemBlur = maxOf(topBlur, bottomBlur)
                 val appKey = "${app.packageName}/${app.activityName}"
+                val isDragged = dragFromIndex == index
+                val activePressKey = if (isDragged) appKey else pressedAppKey
 
                 key(appKey) {
                     val targetNeighborSink = neighborPressOffset(
                         appKey = appKey,
-                        pressedAppKey = pressedAppKey,
+                        pressedAppKey = activePressKey,
                         current = gridPos,
                         positions = positions,
                         apps = apps,
@@ -180,7 +245,7 @@ fun HoneycombScreen(
                         label = "neighbor_sink"
                     )
                     AppBubble(
-                        icon = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && blurEnabled && edgeBlurEnabled && itemBlur > 0.5f) {
+                        icon = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && blurEnabled && effectiveEdgeBlur && itemBlur > 0.5f) {
                             app.cachedBlurredIcon
                         } else {
                             app.cachedIcon
@@ -193,12 +258,16 @@ fun HoneycombScreen(
                             onAppClick(app, Offset(sx / screenWidthPx, syPos / screenHeightPx))
                         },
                         onLongClick = {
-                            vibrateHaptic(context)
-                            onLongClick(app)
-                            longPressedApp = app
+                            if (dragFromIndex == null) {
+                                onLongClick(app)
+                                longPressedApp = app
+                            }
                         },
+                        forcePressed = isDragged,
                         onPressedChange = { pressed ->
-                            pressedAppKey = if (pressed) appKey else pressedAppKey.takeUnless { it == appKey }
+                            if (!isDragged) {
+                                pressedAppKey = if (pressed) appKey else pressedAppKey.takeUnless { it == appKey }
+                            }
                         },
                         modifier = Modifier
                             .graphicsLayer {
@@ -207,6 +276,10 @@ fun HoneycombScreen(
                                 val pY = screenCenterY + gridPos.y + sy
                                 translationX = posX - iconSizePx / 2
                                 translationY = pY - iconSizePx / 2
+                                if (isDragged) {
+                                    translationX += dragOffset.x
+                                    translationY += dragOffset.y
+                                }
 
                                 val dx = posX - screenCenterX
                                 val dy = pY - screenCenterY
@@ -217,7 +290,7 @@ fun HoneycombScreen(
                                 alpha = scale.coerceIn(0.24f, 1f)
                                 translationY += animatedNeighborSink
                             }
-                            .platformBlur(itemBlur, blurEnabled && edgeBlurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+                            .platformBlur(itemBlur, blurEnabled && effectiveEdgeBlur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
                     )
                 }
             }
@@ -270,6 +343,41 @@ private fun neighborPressOffset(
     val ddx = current.x - pressedPos.x
     val ddy = current.y - pressedPos.y
     val distance = sqrt(ddx * ddx + ddy * ddy)
-    val range = cellSize * 1.2f
-    return iconSizePx * 0.02f * (1f - distance / range).coerceIn(0f, 1f)
+    val range = cellSize * 1.75f
+    return iconSizePx * 0.04f * (1f - distance / range).coerceIn(0f, 1f)
+}
+
+private fun findNearestHoneycombIndex(
+    pointer: Offset,
+    positions: List<Offset>,
+    screenCenterX: Float,
+    screenCenterY: Float,
+    maxDistance: Float
+): Int? {
+    var bestIndex: Int? = null
+    var bestDistance = Float.MAX_VALUE
+    positions.forEachIndexed { index, position ->
+        val dx = pointer.x - (screenCenterX + position.x)
+        val dy = pointer.y - (screenCenterY + position.y)
+        val distance = sqrt(dx * dx + dy * dy)
+        if (distance < bestDistance && distance <= maxDistance) {
+            bestDistance = distance
+            bestIndex = index
+        }
+    }
+    return bestIndex
+}
+
+private fun dragPointerCenter(
+    index: Int,
+    positions: List<Offset>,
+    screenCenterX: Float,
+    screenCenterY: Float,
+    dragOffset: Offset
+): Offset {
+    val base = positions[index]
+    return Offset(
+        x = screenCenterX + base.x + dragOffset.x,
+        y = screenCenterY + base.y + dragOffset.y
+    )
 }

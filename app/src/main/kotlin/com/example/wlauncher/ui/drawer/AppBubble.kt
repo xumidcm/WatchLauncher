@@ -33,29 +33,32 @@ fun AppBubble(
     size: Dp = 54.dp,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    forcePressed: Boolean = false,
     onPressedChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val activePressed = isPressed || forcePressed
     val pressedScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else 1f,
+        targetValue = if (activePressed) 0.9f else 1f,
         animationSpec = tween(durationMillis = 180),
         label = "bubble_scale"
     )
     val pressedOverlayAlpha by animateFloatAsState(
-        targetValue = if (isPressed) 0.16f else 0f,
+        targetValue = if (activePressed) 0.16f else 0f,
         animationSpec = tween(durationMillis = 180),
         label = "bubble_overlay"
     )
 
-    LaunchedEffect(isPressed) {
-        onPressedChange(isPressed)
+    LaunchedEffect(activePressed) {
+        onPressedChange(activePressed)
     }
 
     Box(
         modifier = modifier
             .size(size)
+            .clip(CircleShape)
             .graphicsLayer {
                 shadowElevation = 8.dp.toPx()
                 shape = CircleShape
@@ -74,7 +77,9 @@ fun AppBubble(
         Image(
             bitmap = icon,
             contentDescription = null,
-            modifier = Modifier.size(size),
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
         if (pressedOverlayAlpha > 0f) {

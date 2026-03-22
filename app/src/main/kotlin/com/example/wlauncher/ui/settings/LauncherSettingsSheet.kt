@@ -97,7 +97,7 @@ fun LauncherSettingsSheet(
                 .padding(top = 30.dp, start = 14.dp, end = 14.dp, bottom = 30.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item(key = "title") {
+            item("title") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "title" }, screenCenterY, screenHeightPx)
                 Text(
                     text = tr(isZh, "桌面设置", "Launcher Settings"),
@@ -123,7 +123,7 @@ fun LauncherSettingsSheet(
             item("effects_header") { ScaledSectionHeader(tr(isZh, "效果", "Effects"), listState, "effects_header", screenCenterY, screenHeightPx) }
             item("blur_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "blur_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle(tr(isZh, "模糊", "Blur"), tr(isZh, "在所有支持的 Android 版本上启用模糊", "Enable blur on all supported Android versions"), blurEnabled, onBlurToggle, scale = scale)
+                SettingToggle(tr(isZh, "模糊", "Blur"), tr(isZh, "在支持的 Android 版本上启用模糊", "Enable blur on supported Android versions"), blurEnabled, onBlurToggle, scale = scale)
             }
             item("edge_blur_toggle") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "edge_blur_toggle" }, screenCenterY, screenHeightPx)
@@ -242,19 +242,10 @@ fun LauncherSettingsSheet(
                 }
             }
 
-            item("features_header") { ScaledSectionHeader(tr(isZh, "功能", "Features"), listState, "features_header", screenCenterY, screenHeightPx) }
-            item("notification_toggle") {
-                val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "notification_toggle" }, screenCenterY, screenHeightPx)
-                SettingToggle(tr(isZh, "通知中心", "Notification Center"), tr(isZh, "启用占位通知页", "Enable the placeholder notification sheet"), showNotification, onShowNotificationChange, scale = scale)
-            }
-
             item("tools_header") { ScaledSectionHeader(tr(isZh, "工具", "Tools"), listState, "tools_header", screenCenterY, screenHeightPx) }
             item("export_log") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "export_log" }, screenCenterY, screenHeightPx)
-                ToolButton(
-                    label = tr(isZh, "导出日志", "Export Log"),
-                    scale = scale
-                ) {
+                ToolButton(tr(isZh, "导出日志", "Export Log"), scale) {
                     try {
                         val log = Runtime.getRuntime().exec("logcat -d -t 500").inputStream.bufferedReader().readText()
                         val file = java.io.File(context.cacheDir, "wlauncher_log.txt")
@@ -277,12 +268,7 @@ fun LauncherSettingsSheet(
             }
             item("reset_defaults") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "reset_defaults" }, screenCenterY, screenHeightPx)
-                ToolButton(
-                    label = tr(isZh, "恢复默认设置", "Restore Defaults"),
-                    scale = scale
-                ) {
-                    onResetDefaults()
-                }
+                ToolButton(tr(isZh, "恢复默认设置", "Restore Defaults"), scale, onResetDefaults)
             }
             item("back") {
                 val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "back" }, screenCenterY, screenHeightPx)
@@ -426,9 +412,7 @@ private fun DeferredSliderCard(
     onValueCommitted: (Float) -> Unit
 ) {
     var sliderValue by remember(label) { mutableFloatStateOf(value) }
-    LaunchedEffect(value) {
-        sliderValue = value
-    }
+    LaunchedEffect(value) { sliderValue = value }
     Column(
         modifier = Modifier
             .fillMaxWidth()

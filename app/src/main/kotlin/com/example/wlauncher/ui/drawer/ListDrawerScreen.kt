@@ -2,11 +2,15 @@ package com.example.wlauncher.ui.drawer
 
 import android.os.Build
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,6 +65,7 @@ fun ListDrawerScreen(
     apps: List<AppInfo>,
     blurEnabled: Boolean = true,
     edgeBlurEnabled: Boolean = false,
+    suppressHeavyEffects: Boolean = false,
     iconSize: Dp = 48.dp,
     onAppClick: (AppInfo, Offset) -> Unit,
     onLongClick: (AppInfo) -> Unit = {},
@@ -73,6 +79,7 @@ fun ListDrawerScreen(
     val itemPositions = remember { mutableMapOf<Int, Float>() }
     val overscroll = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
+    val effectiveEdgeBlur = edgeBlurEnabled && !suppressHeavyEffects
 
     val nestedScrollConnection = remember(listState) {
         object : NestedScrollConnection {
@@ -136,7 +143,19 @@ fun ListDrawerScreen(
                 itemsIndexed(apps, key = { _, app -> "${app.packageName}/${app.activityName}" }) { index, app ->
                     val itemInfo = listState.layoutInfo.visibleItemsInfo.find { it.index == index }
                     val itemScale = computeItemScale(itemInfo, screenCenterY, screenHeightPx)
-                    val useSoftBlur = blurEnabled && edgeBlurEnabled && Build.VERSION.SDK_INT < Build.VERSION_CODES.S && isNearBottom(itemInfo, screenHeightPx)
+                    val useSoftBlur = blurEnabled && effectiveEdgeBlur && Build.VERSION.SDK_INT < Build.VERSION_CODES.S && isNearBottom(itemInfo, screenHeightPx)
+                    val interactionSource = remember(app.packageName, app.activityName) { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val pressedScale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        animationSpec = tween(durationMillis = 170),
+                        label = "list_press_scale"
+                    )
+                    val pressedOverlay by animateFloatAsState(
+                        targetValue = if (isPressed) 0.10f else 0f,
+                        animationSpec = tween(durationMillis = 170),
+                        label = "list_press_overlay"
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -145,11 +164,15 @@ fun ListDrawerScreen(
                                 itemPositions[index] = posY + coords.size.height / 2f
                             }
                             .graphicsLayer {
-                                scaleX = itemScale
-                                scaleY = itemScale
+                                val targetScale = itemScale * pressedScale
+                                scaleX = targetScale
+                                scaleY = targetScale
                                 alpha = itemScale.coerceIn(0.3f, 1f)
                             }
+                            .background(Color.Black.copy(alpha = pressedOverlay), RoundedCornerShape(18.dp))
                             .combinedClickable(
+                                interactionSource = interactionSource,
+                                indication = null,
                                 onClick = {
                                     val centerY = itemPositions[index] ?: screenCenterY
                                     onAppClick(app, Offset(0.15f, centerY / screenHeightPx))
