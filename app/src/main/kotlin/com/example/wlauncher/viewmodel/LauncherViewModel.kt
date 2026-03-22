@@ -14,7 +14,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.data.repository.AppRepository
-import com.example.wlauncher.service.StepCounterManager
 import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.navigation.ScreenState
 import kotlinx.coroutines.Job
@@ -142,7 +141,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
         }
 
-        StepCounterManager.initialize(application)
     }
 
     fun setState(state: ScreenState) {
@@ -300,6 +298,5 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     override fun onCleared() {
         super.onCleared()
         appRepository.destroy()
-        StepCounterManager.release()
     }
 }
