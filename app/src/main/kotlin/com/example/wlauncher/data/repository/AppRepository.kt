@@ -142,7 +142,7 @@ class AppRepository(private val context: Context) {
             )
         }
         return apps.sortedWith(
-            compareByDescending<AppInfo> { it.installedAt }
+            compareBy<AppInfo> { it.installedAt }
                 .thenBy { it.label.lowercase() }
         )
     }

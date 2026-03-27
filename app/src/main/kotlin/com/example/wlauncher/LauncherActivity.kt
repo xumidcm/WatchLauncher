@@ -57,6 +57,8 @@ import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel
 import kotlinx.coroutines.delay
 
+private const val BASE_LAUNCH_MASK_DELAY_MS = 180L
+
 class LauncherActivity : ComponentActivity() {
 
     private lateinit var vm: LauncherViewModel
@@ -114,7 +116,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val appOpenOrigin by vm.appOpenOrigin.collectAsState()
     val splashIcon by vm.splashIcon.collectAsState()
     val splashDelay by vm.splashDelay.collectAsState()
-    val appOpenAnimationDuration by vm.appOpenAnimationDuration.collectAsState()
     val appReturnAnimationDuration by vm.appReturnAnimationDuration.collectAsState()
     val currentApp by vm.currentApp.collectAsState()
     val listIconSize by vm.listIconSize.collectAsState()
@@ -145,7 +146,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     LaunchedEffect(screenState, splashIcon, splashDelay, currentApp) {
         if (screenState == ScreenState.App && splashIcon && currentApp != null) {
             showSplash = false
-            delay(splashDelay.toLong())
+            delay(BASE_LAUNCH_MASK_DELAY_MS)
             showSplash = true
         } else {
             showSplash = false
@@ -203,7 +204,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         topFadeRangeDp = honeycombTopFade,
                         bottomFadeRangeDp = honeycombBottomFade,
                         onAppClick = { appInfo, origin ->
-                            vm.openApp(appInfo, origin, appOpenAnimationDuration.toLong())
+                            val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
+                            vm.openApp(appInfo, origin, launchDelay)
                         },
                         onReorder = { from, to -> vm.swapApps(from, to) },
                         onLongClick = {},
@@ -220,7 +222,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         iconScaleMultiplier = iconScaleMultiplier,
                         menuBlurEnabled = menuBlurEnabled,
                         onAppClick = { appInfo, origin ->
-                            vm.openApp(appInfo, origin, appOpenAnimationDuration.toLong())
+                            val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
+                            vm.openApp(appInfo, origin, launchDelay)
                         },
                         onReorder = { from, to -> vm.swapApps(from, to) },
                         onLongClick = {},
@@ -245,7 +248,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
 
             AnimatedVisibility(
                 visible = showLaunchBackdrop,
-                enter = fadeIn(animationSpec = tween(durationMillis = appOpenAnimationDuration)),
+                enter = fadeIn(),
                 exit = fadeOut(animationSpec = tween(durationMillis = appReturnAnimationDuration))
             ) {
                 Box(
@@ -256,8 +259,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                 ) {
                     AnimatedVisibility(
                         visible = showSplash && splashIcon && currentApp != null,
-                        enter = fadeIn(animationSpec = tween(durationMillis = appOpenAnimationDuration / 2)) +
-                            scaleIn(initialScale = 0.5f, animationSpec = tween(durationMillis = appOpenAnimationDuration)),
+                        enter = fadeIn() + scaleIn(initialScale = 0.5f),
                         exit = fadeOut(animationSpec = tween(durationMillis = appReturnAnimationDuration)) +
                             scaleOut(targetScale = 0.3f, animationSpec = tween(durationMillis = appReturnAnimationDuration))
                     ) {
@@ -317,7 +319,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     edgeGradientBlurEnabled = edgeBlurEnabled,
                     menuBlurEnabled = menuBlurEnabled,
                     blurRadiusDp = blurRadiusDp,
-                    appOpenAnimationDuration = appOpenAnimationDuration,
                     appReturnAnimationDuration = appReturnAnimationDuration,
                     iconScalePreset = iconPreset.storageValue,
                     autoIconSize = autoIconSize,
@@ -339,7 +340,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onEdgeGradientBlurToggle = { vm.setEdgeGradientBlurEnabled(it) },
                     onMenuBlurToggle = { vm.setMenuBackgroundBlurEnabled(it) },
                     onBlurRadiusChange = { vm.setBlurRadiusDp(it) },
-                    onAppOpenAnimationDurationChange = { vm.setAppOpenAnimationDuration(it) },
                     onAppReturnAnimationDurationChange = { vm.setAppReturnAnimationDuration(it) },
                     onIconScalePresetChange = { vm.setIconSizePreset(it) },
                     onAutoIconSizeToggle = { vm.setIconSizeAuto(it) },

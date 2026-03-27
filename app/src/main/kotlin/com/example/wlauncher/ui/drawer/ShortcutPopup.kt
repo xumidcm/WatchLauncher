@@ -89,11 +89,16 @@ fun AppShortcutOverlay(
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer { this.alpha = alpha }
-            .background(Color.Black.copy(alpha = 0.72f))
-            .platformBlur(blurRadiusDp = 4f, enabled = blurEnabled)
             .clickable(indication = null, interactionSource = null) { animateDismiss() },
         contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.72f))
+                .platformBlur(blurRadiusDp = 4f, enabled = blurEnabled)
+        )
+
         val density = LocalDensity.current
         val maxMenuHeight = with(density) { maxHeight * 0.44f }
         val scrollState = rememberScrollState()

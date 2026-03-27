@@ -16,7 +16,6 @@ import com.example.wlauncher.ui.navigation.LayoutMode
 import com.example.wlauncher.ui.settings.LauncherSettingsSheet
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_ANIMATION_OVERRIDE
-import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_APP_OPEN_ANIM_DURATION
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_APP_RETURN_ANIM_DURATION
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_APP_TRANSITION_BLUR
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_BLUR
@@ -70,7 +69,6 @@ class SettingsActivity : ComponentActivity() {
                 val animationOverrideEnabled = prefs?.get(KEY_ANIMATION_OVERRIDE) ?: true
                 val splashIcon = prefs?.get(KEY_SPLASH_ICON) ?: true
                 val splashDelay = prefs?.get(KEY_SPLASH_DELAY) ?: 500
-                val appOpenAnimationDuration = prefs?.get(KEY_APP_OPEN_ANIM_DURATION) ?: 280
                 val appReturnAnimationDuration = prefs?.get(KEY_APP_RETURN_ANIM_DURATION) ?: 220
 
                 val honeycombCols = prefs?.get(KEY_HONEYCOMB_COLS) ?: 4
@@ -99,7 +97,6 @@ class SettingsActivity : ComponentActivity() {
                     edgeGradientBlurEnabled = edgeGradientBlurEnabled,
                     menuBlurEnabled = menuBlurEnabled,
                     blurRadiusDp = blurRadiusDp,
-                    appOpenAnimationDuration = appOpenAnimationDuration,
                     appReturnAnimationDuration = appReturnAnimationDuration,
                     iconScalePreset = iconScalePreset,
                     autoIconSize = autoIconSize,
@@ -177,7 +174,6 @@ class SettingsActivity : ComponentActivity() {
                             }
                         }
                     },
-                    onAppOpenAnimationDurationChange = { value -> scope.launch { dataStore.edit { it[KEY_APP_OPEN_ANIM_DURATION] = value } } },
                     onAppReturnAnimationDurationChange = { value -> scope.launch { dataStore.edit { it[KEY_APP_RETURN_ANIM_DURATION] = value } } },
                     onIconScalePresetChange = { value ->
                         scope.launch {
@@ -218,7 +214,6 @@ class SettingsActivity : ComponentActivity() {
                                 it[KEY_ANIMATION_OVERRIDE] = true
                                 it[KEY_SPLASH_ICON] = true
                                 it[KEY_SPLASH_DELAY] = 500
-                                it[KEY_APP_OPEN_ANIM_DURATION] = 280
                                 it[KEY_APP_RETURN_ANIM_DURATION] = 220
                                 it[KEY_HONEYCOMB_COLS] = 4
                                 it[KEY_HONEYCOMB_TOP_BLUR] = 4
