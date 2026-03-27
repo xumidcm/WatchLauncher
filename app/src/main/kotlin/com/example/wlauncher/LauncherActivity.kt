@@ -123,6 +123,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val autoIconSize by vm.iconSizeAuto.collectAsState()
     val blurRadiusDp by vm.blurRadiusDp.collectAsState()
     val honeycombCols by vm.honeycombCols.collectAsState()
+    val honeycombFisheyeEnabled by vm.honeycombFisheyeEnabled.collectAsState()
     val honeycombTopBlur by vm.honeycombTopBlur.collectAsState()
     val honeycombBottomBlur by vm.honeycombBottomBlur.collectAsState()
     val honeycombTopFade by vm.honeycombTopFade.collectAsState()
@@ -199,6 +200,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         suppressHeavyEffects = reduceLegacyDrawerEffects,
                         narrowCols = honeycombCols,
                         iconScaleMultiplier = iconScaleMultiplier,
+                        fisheyeEnabled = honeycombFisheyeEnabled,
                         topBlurRadiusDp = honeycombTopBlur,
                         bottomBlurRadiusDp = honeycombBottomBlur,
                         topFadeRangeDp = honeycombTopFade,
@@ -310,6 +312,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     splashDelay = splashDelay,
                     listIconSize = listIconSize,
                     honeycombCols = honeycombCols,
+                    honeycombFisheyeEnabled = honeycombFisheyeEnabled,
                     honeycombTopBlur = honeycombTopBlur,
                     honeycombBottomBlur = honeycombBottomBlur,
                     honeycombTopFade = honeycombTopFade,
@@ -331,6 +334,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onSplashDelayChange = { vm.setSplashDelay(it) },
                     onListIconSizeChange = { vm.setListIconSize(it) },
                     onHoneycombColsChange = { vm.setHoneycombCols(it) },
+                    onHoneycombFisheyeToggle = { vm.setHoneycombFisheyeEnabled(it) },
                     onHoneycombTopBlurChange = { vm.setHoneycombTopBlur(it) },
                     onHoneycombBottomBlurChange = { vm.setHoneycombBottomBlur(it) },
                     onHoneycombTopFadeChange = { vm.setHoneycombTopFade(it) },

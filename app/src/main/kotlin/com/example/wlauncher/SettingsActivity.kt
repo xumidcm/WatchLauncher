@@ -25,6 +25,7 @@ import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_EDGE_GRAD
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_BOTTOM_BLUR
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_BOTTOM_FADE
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_COLS
+import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_FISHEYE
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_TOP_BLUR
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_HONEYCOMB_TOP_FADE
 import com.example.wlauncher.viewmodel.LauncherViewModel.Companion.KEY_ICON_SIZE_AUTO
@@ -72,6 +73,7 @@ class SettingsActivity : ComponentActivity() {
                 val appReturnAnimationDuration = prefs?.get(KEY_APP_RETURN_ANIM_DURATION) ?: 220
 
                 val honeycombCols = prefs?.get(KEY_HONEYCOMB_COLS) ?: 4
+                val honeycombFisheyeEnabled = prefs?.get(KEY_HONEYCOMB_FISHEYE) ?: true
                 val honeycombTopBlur = prefs?.get(KEY_HONEYCOMB_TOP_BLUR) ?: 4
                 val honeycombBottomBlur = prefs?.get(KEY_HONEYCOMB_BOTTOM_BLUR) ?: 4
                 val honeycombTopFade = prefs?.get(KEY_HONEYCOMB_TOP_FADE) ?: 56
@@ -88,6 +90,7 @@ class SettingsActivity : ComponentActivity() {
                     splashDelay = splashDelay,
                     listIconSize = listIconSize,
                     honeycombCols = honeycombCols,
+                    honeycombFisheyeEnabled = honeycombFisheyeEnabled,
                     honeycombTopBlur = honeycombTopBlur,
                     honeycombBottomBlur = honeycombBottomBlur,
                     honeycombTopFade = honeycombTopFade,
@@ -135,6 +138,7 @@ class SettingsActivity : ComponentActivity() {
                         }
                     },
                     onHoneycombColsChange = { value -> scope.launch { dataStore.edit { it[KEY_HONEYCOMB_COLS] = value } } },
+                    onHoneycombFisheyeToggle = { value -> scope.launch { dataStore.edit { it[KEY_HONEYCOMB_FISHEYE] = value } } },
                     onHoneycombTopBlurChange = { value -> scope.launch { dataStore.edit { it[KEY_HONEYCOMB_TOP_BLUR] = value } } },
                     onHoneycombBottomBlurChange = { value -> scope.launch { dataStore.edit { it[KEY_HONEYCOMB_BOTTOM_BLUR] = value } } },
                     onHoneycombTopFadeChange = { value -> scope.launch { dataStore.edit { it[KEY_HONEYCOMB_TOP_FADE] = value } } },
@@ -216,6 +220,7 @@ class SettingsActivity : ComponentActivity() {
                                 it[KEY_SPLASH_DELAY] = 500
                                 it[KEY_APP_RETURN_ANIM_DURATION] = 220
                                 it[KEY_HONEYCOMB_COLS] = 4
+                                it[KEY_HONEYCOMB_FISHEYE] = true
                                 it[KEY_HONEYCOMB_TOP_BLUR] = 4
                                 it[KEY_HONEYCOMB_BOTTOM_BLUR] = 4
                                 it[KEY_HONEYCOMB_TOP_FADE] = 56

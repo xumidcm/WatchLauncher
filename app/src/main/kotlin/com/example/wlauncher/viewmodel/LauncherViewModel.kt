@@ -61,6 +61,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
         val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
+        val KEY_HONEYCOMB_FISHEYE = booleanPreferencesKey("honeycomb_fisheye_enabled")
         val KEY_HONEYCOMB_TOP_BLUR = intPreferencesKey("honeycomb_top_blur")
         val KEY_HONEYCOMB_BOTTOM_BLUR = intPreferencesKey("honeycomb_bottom_blur")
         val KEY_HONEYCOMB_TOP_FADE = intPreferencesKey("honeycomb_top_fade")
@@ -126,6 +127,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _honeycombCols = MutableStateFlow(LauncherDefaults.honeycombCols)
     val honeycombCols: StateFlow<Int> = _honeycombCols.asStateFlow()
+
+    private val _honeycombFisheyeEnabled = MutableStateFlow(true)
+    val honeycombFisheyeEnabled: StateFlow<Boolean> = _honeycombFisheyeEnabled.asStateFlow()
 
     private val _honeycombTopBlur = MutableStateFlow(LauncherDefaults.blurRadiusDp)
     val honeycombTopBlur: StateFlow<Int> = _honeycombTopBlur.asStateFlow()
@@ -201,6 +205,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         appRepository.setCustomOrder(order)
 
         _honeycombCols.value = (prefs[KEY_HONEYCOMB_COLS] ?: LauncherDefaults.honeycombCols).coerceIn(3, 6)
+        _honeycombFisheyeEnabled.value = prefs[KEY_HONEYCOMB_FISHEYE] ?: true
         _honeycombTopBlur.value = (prefs[KEY_HONEYCOMB_TOP_BLUR] ?: LauncherDefaults.blurRadiusDp).coerceIn(0, 48)
         _honeycombBottomBlur.value = (prefs[KEY_HONEYCOMB_BOTTOM_BLUR] ?: LauncherDefaults.blurRadiusDp).coerceIn(0, 48)
         _honeycombTopFade.value = (prefs[KEY_HONEYCOMB_TOP_FADE] ?: LauncherDefaults.honeycombFadeDp).coerceIn(0, 160)
@@ -273,6 +278,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             layout = LayoutConfig(
                 mode = _layoutMode.value,
                 honeycombCols = _honeycombCols.value,
+                honeycombFisheyeEnabled = _honeycombFisheyeEnabled.value,
                 honeycombTopBlurDp = _honeycombTopBlur.value,
                 honeycombBottomBlurDp = _honeycombBottomBlur.value,
                 honeycombTopFadeDp = _honeycombTopFade.value,
@@ -490,6 +496,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_COLS] = _honeycombCols.value } }
     }
 
+    fun setHoneycombFisheyeEnabled(enabled: Boolean) {
+        _honeycombFisheyeEnabled.value = enabled
+        syncUiConfig()
+        viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_FISHEYE] = enabled } }
+    }
+
     fun setHoneycombTopBlur(value: Int) {
         _honeycombTopBlur.value = value.coerceIn(0, 48)
         syncUiConfig()
@@ -550,6 +562,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _appReturnAnimationDuration.value = LauncherDefaults.appReturnAnimationDurationMs
 
         _honeycombCols.value = LauncherDefaults.honeycombCols
+        _honeycombFisheyeEnabled.value = true
         _honeycombTopBlur.value = LauncherDefaults.blurRadiusDp
         _honeycombBottomBlur.value = LauncherDefaults.blurRadiusDp
         _honeycombTopFade.value = LauncherDefaults.honeycombFadeDp
@@ -569,6 +582,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefs[KEY_APP_OPEN_ANIM_DURATION] = LauncherDefaults.appOpenAnimationDurationMs
                 prefs[KEY_APP_RETURN_ANIM_DURATION] = LauncherDefaults.appReturnAnimationDurationMs
                 prefs[KEY_HONEYCOMB_COLS] = LauncherDefaults.honeycombCols
+                prefs[KEY_HONEYCOMB_FISHEYE] = true
                 prefs[KEY_HONEYCOMB_TOP_BLUR] = LauncherDefaults.blurRadiusDp
                 prefs[KEY_HONEYCOMB_BOTTOM_BLUR] = LauncherDefaults.blurRadiusDp
                 prefs[KEY_HONEYCOMB_TOP_FADE] = LauncherDefaults.honeycombFadeDp

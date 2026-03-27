@@ -10,7 +10,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -49,7 +48,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -64,14 +62,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.ui.anim.platformBlur
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-
-private const val LIST_DRAG_ARM_MS = 500L
-private const val LIST_MENU_TRIGGER_MS = 1000L
-private const val LIST_MENU_TO_DRAG_MS = 1500L
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -182,6 +174,13 @@ fun ListDrawerScreen(
         ) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val screenCenterY = screenHeightPx / 2f
+            val autoScrollSpec = remember(screenHeightPx, density) {
+                DrawerEdgeAutoScrollSpec(
+                    viewportHeight = screenHeightPx,
+                    threshold = with(density) { 72.dp.toPx() },
+                    maxStep = with(density) { 18.dp.toPx() }
+                )
+            }
             val scaledIconSize = iconSize * iconScaleMultiplier.coerceIn(0.8f, 1.35f)
             val estimatedItemHeight = scaledIconSize.coerceAtLeast(48.dp) + 20.dp
             val topPadding = 24.dp
@@ -240,62 +239,24 @@ fun ListDrawerScreen(
                             }
                             .pointerInput(app.componentKey, dragFromIndex, longPressedApp, itemCenters[index]) {
                                 awaitPointerEventScope {
-                                    while (true) {
-                                        val down = awaitFirstDown(requireUnconsumed = false)
-                                        var dragArmed = false
-                                        var menuShown = false
-                                        var dragStarted = false
-                                        var stillPressed = true
-                                        var totalMovement = Offset.Zero
-
-                                        coroutineScope {
-                                            val armJob = launch {
-                                                delay(LIST_DRAG_ARM_MS)
-                                                if (stillPressed && dragFromIndex == null) dragArmed = true
+                                    runDrawerLongPressSequence(
+                                        touchSlop = touchSlop,
+                                        onShowMenu = {
+                                            if (dragFromIndex == null) {
+                                                longPressedApp = app
+                                                onLongClick(app)
                                             }
-                                            val menuJob = launch {
-                                                delay(LIST_MENU_TRIGGER_MS)
-                                                if (stillPressed && !dragStarted && totalMovement.getDistance() < touchSlop && dragFromIndex == null) {
-                                                    menuShown = true
-                                                    longPressedApp = app
-                                                    onLongClick(app)
-                                                }
-                                            }
-                                            val menuToDragJob = launch {
-                                                delay(LIST_MENU_TO_DRAG_MS)
-                                                if (stillPressed && menuShown && !dragStarted && dragFromIndex == null) {
-                                                    longPressedApp = null
-                                                    beginDrag(index)
-                                                    dragStarted = true
-                                                }
-                                            }
-
-                                            while (stillPressed) {
-                                                val event = awaitPointerEvent()
-                                                val change = event.changes.firstOrNull { it.id == down.id } ?: continue
-                                                if (!change.pressed) {
-                                                    stillPressed = false
-                                                    break
-                                                }
-                                                val delta = change.position - change.previousPosition
-                                                totalMovement += delta
-                                                if (!menuShown && !dragStarted && dragArmed && totalMovement.getDistance() > touchSlop) {
-                                                    beginDrag(index)
-                                                    dragStarted = true
-                                                }
-                                                if (dragStarted) {
-                                                    change.consume()
-                                                    updateDrag(index, delta.y, change.position.y, screenHeightPx)
-                                                }
-                                            }
-
-                                            armJob.cancel()
-                                            menuJob.cancel()
-                                            menuToDragJob.cancel()
-                                        }
-
-                                        if (dragStarted) finishDrag()
-                                    }
+                                        },
+                                        onMenuToDrag = {
+                                            longPressedApp = null
+                                            beginDrag(index)
+                                        },
+                                        onBeginDrag = { beginDrag(index) },
+                                        onDragDelta = { delta, pointerPosition ->
+                                            updateDrag(index, delta.y, pointerPosition.y, screenHeightPx)
+                                        },
+                                        onFinishDrag = { finishDrag() }
+                                    )
                                 }
                             }
                             .graphicsLayer {
@@ -410,26 +371,6 @@ private fun findNearestListIndex(
         }
     }
     return bestIndex
-}
-
-private fun edgeAutoScrollDelta(
-    pointerY: Float,
-    viewportHeight: Float,
-    threshold: Float,
-    maxStep: Float
-): Float {
-    if (threshold <= 0f || maxStep <= 0f) return 0f
-    return when {
-        pointerY < threshold -> {
-            val progress = (1f - pointerY / threshold).coerceIn(0f, 1f)
-            -maxStep * progress * progress
-        }
-        pointerY > viewportHeight - threshold -> {
-            val progress = (1f - (viewportHeight - pointerY) / threshold).coerceIn(0f, 1f)
-            maxStep * progress * progress
-        }
-        else -> 0f
-    }
 }
 
 private fun computeItemScale(

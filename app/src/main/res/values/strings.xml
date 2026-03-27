@@ -19,6 +19,8 @@
     <string name="settings_blur_menu_background">长按菜单背景模糊</string>
     <string name="settings_blur_menu_background_desc">控制长按菜单弹出时的背景模糊</string>
     <string name="settings_blur_radius">默认模糊半径</string>
+    <string name="settings_honeycomb_fisheye">蜂窝鱼眼效果</string>
+    <string name="settings_honeycomb_fisheye_desc">控制蜂窝界面的中心放大与边缘缩放</string>
 
     <string name="settings_section_animation">动画</string>
     <string name="settings_animation_override">系统接管过渡动画</string>
