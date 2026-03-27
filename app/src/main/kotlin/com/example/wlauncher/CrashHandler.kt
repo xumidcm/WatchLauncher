@@ -3,7 +3,6 @@ package com.example.wlauncher
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import android.os.Process
 import java.io.File
@@ -26,9 +25,14 @@ class CrashHandler(private val context: Context) : Thread.UncaughtExceptionHandl
             val crashBrief = "${throwable.javaClass.simpleName}: ${throwable.message}"
             val appInfo = buildAppInfo()
             persistCrashPayload(crashInfo, crashBrief, appInfo)
-            scheduleCrashActivity(crashInfo, crashBrief, appInfo)
+            showCrashImmediately(crashInfo, crashBrief, appInfo)
         } catch (_: Exception) {
             defaultHandler?.uncaughtException(thread, throwable)
+        }
+
+        try {
+            Thread.sleep(80)
+        } catch (_: Exception) {
         }
 
         Process.killProcess(Process.myPid())
@@ -66,21 +70,23 @@ class CrashHandler(private val context: Context) : Thread.UncaughtExceptionHandl
         File(context.cacheDir, "crash_app_info.txt").writeText(appInfo)
     }
 
-    private fun scheduleCrashActivity(crashInfo: String, crashBrief: String, appInfo: String) {
-        val intent = Intent(context, CrashActivity::class.java).apply {
-            putExtra("crash_info", crashInfo)
-            putExtra("crash_brief", crashBrief)
-            putExtra("crash_app_info", appInfo)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-        }
+    private fun showCrashImmediately(crashInfo: String, crashBrief: String, appInfo: String) {
+        val intent = CrashActivity.createCrashIntent(
+            context = context,
+            crashInfo = crashInfo,
+            crashBrief = crashBrief,
+            appInfo = appInfo
+        )
         val pendingIntent = PendingIntent.getActivity(
             context,
             1001,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+        runCatching { pendingIntent.send() }
+
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val triggerAt = System.currentTimeMillis() + 120L
+        val triggerAt = System.currentTimeMillis() + 40L
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC, triggerAt, pendingIntent)
         } else {

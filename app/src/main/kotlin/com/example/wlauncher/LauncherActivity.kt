@@ -1,13 +1,14 @@
 package com.example.wlauncher
 
 import android.content.Intent
-import android.os.Bundle
 import android.os.Build
+import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -32,9 +33,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.wlauncher.config.IconScalePreset
+import com.example.wlauncher.config.resolveScaleMultiplier
 import com.example.wlauncher.ui.anim.appListLayerValues
 import com.example.wlauncher.ui.anim.faceLayerValues
 import com.example.wlauncher.ui.anim.notificationLayerValues
@@ -52,8 +56,6 @@ import com.example.wlauncher.ui.smartstack.SmartStackLayer
 import com.example.wlauncher.ui.theme.WatchLauncherTheme
 import com.example.wlauncher.viewmodel.LauncherViewModel
 import kotlinx.coroutines.delay
-
-private const val BASE_LAUNCH_MASK_DELAY_MS = 180L
 
 class LauncherActivity : ComponentActivity() {
 
@@ -85,7 +87,7 @@ class LauncherActivity : ComponentActivity() {
         super.onResume()
         if (::vm.isInitialized && vm.animationOverrideEnabled.value) {
             @Suppress("DEPRECATION")
-            overridePendingTransition(android.R.anim.fade_in, R.anim.launcher_return_cupertino_exit)
+            overridePendingTransition(R.anim.launcher_return_cupertino_enter, R.anim.launcher_return_cupertino_exit)
         }
         if (::vm.isInitialized) vm.onReturnToLauncher()
     }
@@ -104,21 +106,32 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val screenState by vm.screenState.collectAsState()
     val layoutMode by vm.layoutMode.collectAsState()
     val blurEnabled by vm.blurEnabled.collectAsState()
+    val appLaunchBlurEnabled by vm.appLaunchBlurEnabled.collectAsState()
     val edgeBlurEnabled by vm.edgeBlurEnabled.collectAsState()
+    val menuBlurEnabled by vm.menuBackgroundBlurEnabled.collectAsState()
     val animationOverrideEnabled by vm.animationOverrideEnabled.collectAsState()
     val apps by vm.apps.collectAsState()
     val appOpenOrigin by vm.appOpenOrigin.collectAsState()
     val splashIcon by vm.splashIcon.collectAsState()
     val splashDelay by vm.splashDelay.collectAsState()
+    val appOpenAnimationDuration by vm.appOpenAnimationDuration.collectAsState()
+    val appReturnAnimationDuration by vm.appReturnAnimationDuration.collectAsState()
     val currentApp by vm.currentApp.collectAsState()
     val listIconSize by vm.listIconSize.collectAsState()
+    val iconScalePreset by vm.iconSizePreset.collectAsState()
+    val autoIconSize by vm.iconSizeAuto.collectAsState()
+    val blurRadiusDp by vm.blurRadiusDp.collectAsState()
     val honeycombCols by vm.honeycombCols.collectAsState()
     val honeycombTopBlur by vm.honeycombTopBlur.collectAsState()
     val honeycombBottomBlur by vm.honeycombBottomBlur.collectAsState()
     val honeycombTopFade by vm.honeycombTopFade.collectAsState()
     val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
     val showNotification by vm.showNotification.collectAsState()
-    val layerBlurEnabled = blurEnabled && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || screenState != ScreenState.App)
+
+    val layerBlurEnabled = when (screenState) {
+        ScreenState.App -> appLaunchBlurEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        else -> blurEnabled
+    }
     val reduceLegacyDrawerEffects = Build.VERSION.SDK_INT < Build.VERSION_CODES.S && screenState == ScreenState.App
 
     var prevState by remember { mutableStateOf(screenState) }
@@ -132,7 +145,7 @@ fun LauncherScreen(vm: LauncherViewModel) {
     LaunchedEffect(screenState, splashIcon, splashDelay, currentApp) {
         if (screenState == ScreenState.App && splashIcon && currentApp != null) {
             showSplash = false
-            delay(BASE_LAUNCH_MASK_DELAY_MS)
+            delay(splashDelay.toLong())
             showSplash = true
         } else {
             showSplash = false
@@ -145,7 +158,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
             .background(Color.Black)
     ) {
         val density = LocalDensity.current
+        val configuration = LocalConfiguration.current
         val screenHeightPx = with(density) { maxHeight.toPx() }
+        val iconPreset = IconScalePreset.fromStorage(iconScalePreset)
+        val iconScaleMultiplier = iconPreset.resolveScaleMultiplier(configuration.smallestScreenWidthDp)
 
         GestureHost(
             screenState = screenState,
@@ -177,32 +193,37 @@ fun LauncherScreen(vm: LauncherViewModel) {
                 when (layoutMode) {
                     LayoutMode.Honeycomb -> HoneycombScreen(
                         apps = apps,
-                        blurEnabled = blurEnabled,
+                        blurEnabled = appLaunchBlurEnabled,
                         edgeBlurEnabled = edgeBlurEnabled,
                         suppressHeavyEffects = reduceLegacyDrawerEffects,
                         narrowCols = honeycombCols,
+                        iconScaleMultiplier = iconScaleMultiplier,
                         topBlurRadiusDp = honeycombTopBlur,
                         bottomBlurRadiusDp = honeycombBottomBlur,
                         topFadeRangeDp = honeycombTopFade,
                         bottomFadeRangeDp = honeycombBottomFade,
                         onAppClick = { appInfo, origin ->
-                            val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
-                            vm.openApp(appInfo, origin, launchDelay)
+                            vm.openApp(appInfo, origin, appOpenAnimationDuration.toLong())
                         },
                         onReorder = { from, to -> vm.swapApps(from, to) },
+                        onLongClick = {},
+                        menuBlurEnabled = menuBlurEnabled,
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
+
                     LayoutMode.List -> ListDrawerScreen(
                         apps = apps,
-                        blurEnabled = blurEnabled,
+                        blurEnabled = appLaunchBlurEnabled,
                         edgeBlurEnabled = edgeBlurEnabled,
                         suppressHeavyEffects = reduceLegacyDrawerEffects,
                         iconSize = listIconSize.dp,
+                        iconScaleMultiplier = iconScaleMultiplier,
+                        menuBlurEnabled = menuBlurEnabled,
                         onAppClick = { appInfo, origin ->
-                            val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
-                            vm.openApp(appInfo, origin, launchDelay)
+                            vm.openApp(appInfo, origin, appOpenAnimationDuration.toLong())
                         },
                         onReorder = { from, to -> vm.swapApps(from, to) },
+                        onLongClick = {},
                         onScrollToTop = { vm.setState(ScreenState.Face) }
                     )
                 }
@@ -224,8 +245,8 @@ fun LauncherScreen(vm: LauncherViewModel) {
 
             AnimatedVisibility(
                 visible = showLaunchBackdrop,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = fadeIn(animationSpec = tween(durationMillis = appOpenAnimationDuration)),
+                exit = fadeOut(animationSpec = tween(durationMillis = appReturnAnimationDuration))
             ) {
                 Box(
                     modifier = Modifier
@@ -235,8 +256,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
                 ) {
                     AnimatedVisibility(
                         visible = showSplash && splashIcon && currentApp != null,
-                        enter = fadeIn() + scaleIn(initialScale = 0.5f),
-                        exit = fadeOut() + scaleOut(targetScale = 0.3f)
+                        enter = fadeIn(animationSpec = tween(durationMillis = appOpenAnimationDuration / 2)) +
+                            scaleIn(initialScale = 0.5f, animationSpec = tween(durationMillis = appOpenAnimationDuration)),
+                        exit = fadeOut(animationSpec = tween(durationMillis = appReturnAnimationDuration)) +
+                            scaleOut(targetScale = 0.3f, animationSpec = tween(durationMillis = appReturnAnimationDuration))
                     ) {
                         currentApp?.let { app ->
                             Image(
@@ -251,9 +274,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     }
                 }
             }
-
-            /* legacy launch overlay animation kept for icon stage only */
-            /* removed duplicate full-screen backdrop composition */
 
             Box(
                 modifier = Modifier
@@ -293,9 +313,17 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     honeycombTopFade = honeycombTopFade,
                     honeycombBottomFade = honeycombBottomFade,
                     showNotification = showNotification,
+                    appLaunchBlurEnabled = appLaunchBlurEnabled,
+                    edgeGradientBlurEnabled = edgeBlurEnabled,
+                    menuBlurEnabled = menuBlurEnabled,
+                    blurRadiusDp = blurRadiusDp,
+                    appOpenAnimationDuration = appOpenAnimationDuration,
+                    appReturnAnimationDuration = appReturnAnimationDuration,
+                    iconScalePreset = iconPreset.storageValue,
+                    autoIconSize = autoIconSize,
                     onLayoutChange = { vm.setLayoutMode(it) },
                     onBlurToggle = { vm.setBlurEnabled(it) },
-                    onEdgeBlurToggle = { vm.setEdgeBlurEnabled(it) },
+                    onEdgeBlurToggle = { vm.setEdgeGradientBlurEnabled(it) },
                     onLowResToggle = { vm.setLowResIcons(it) },
                     onAnimationOverrideToggle = { vm.setAnimationOverrideEnabled(it) },
                     onSplashToggle = { vm.setSplashIcon(it) },
@@ -307,11 +335,18 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onHoneycombTopFadeChange = { vm.setHoneycombTopFade(it) },
                     onHoneycombBottomFadeChange = { vm.setHoneycombBottomFade(it) },
                     onShowNotificationChange = { vm.setShowNotification(it) },
+                    onAppLaunchBlurToggle = { vm.setAppLaunchBlurEnabled(it) },
+                    onEdgeGradientBlurToggle = { vm.setEdgeGradientBlurEnabled(it) },
+                    onMenuBlurToggle = { vm.setMenuBackgroundBlurEnabled(it) },
+                    onBlurRadiusChange = { vm.setBlurRadiusDp(it) },
+                    onAppOpenAnimationDurationChange = { vm.setAppOpenAnimationDuration(it) },
+                    onAppReturnAnimationDurationChange = { vm.setAppReturnAnimationDuration(it) },
+                    onIconScalePresetChange = { vm.setIconSizePreset(it) },
+                    onAutoIconSizeToggle = { vm.setIconSizeAuto(it) },
                     onResetDefaults = { vm.resetSettings() },
                     onDismiss = { vm.setState(ScreenState.Apps) }
                 )
             }
         }
-
     }
 }

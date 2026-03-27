@@ -49,12 +49,14 @@ fun HoneycombScreen(
     edgeBlurEnabled: Boolean = false,
     suppressHeavyEffects: Boolean = false,
     narrowCols: Int = 4,
+    iconScaleMultiplier: Float = 1f,
     topBlurRadiusDp: Int = 12,
     bottomBlurRadiusDp: Int = 12,
     topFadeRangeDp: Int = 56,
     bottomFadeRangeDp: Int = 56,
     onAppClick: (AppInfo, Offset) -> Unit,
     onReorder: (Int, Int) -> Unit = { _, _ -> },
+    menuBlurEnabled: Boolean = true,
     onLongClick: (AppInfo) -> Unit = {},
     onScrollToTop: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -80,7 +82,7 @@ fun HoneycombScreen(
         val iconSizePx = (availableWidth / (maxCols + 0.35f)).coerceIn(
             with(density) { 54.dp.toPx() },
             with(density) { 84.dp.toPx() }
-        )
+        ) * iconScaleMultiplier.coerceIn(0.8f, 1.35f)
         val iconSizeDp = with(density) { iconSizePx.toDp() }
         val cellSize = iconSizePx * 1.02f
         val topFadePx = with(density) { topFadeRangeDp.dp.toPx() }
@@ -345,7 +347,7 @@ fun HoneycombScreen(
     }
 
     longPressedApp?.let { app ->
-        AppShortcutOverlay(app = app, blurEnabled = blurEnabled, onDismiss = { longPressedApp = null })
+        AppShortcutOverlay(app = app, blurEnabled = menuBlurEnabled, onDismiss = { longPressedApp = null })
     }
 }
 

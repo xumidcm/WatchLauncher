@@ -1,4 +1,70 @@
 <resources>
     <string name="app_name">WatchLauncher</string>
     <string name="shortcut_settings">桌面设置</string>
+
+    <string name="settings_title">桌面设置</string>
+    <string name="settings_section_layout">布局</string>
+    <string name="settings_layout_honeycomb">蜂窝布局</string>
+    <string name="settings_layout_honeycomb_desc">Apple Watch 风格网格</string>
+    <string name="settings_layout_list">列表布局</string>
+    <string name="settings_layout_list_desc">纵向应用列表</string>
+
+    <string name="settings_section_effects">效果</string>
+    <string name="settings_blur_master">整体模糊联动</string>
+    <string name="settings_blur_master_desc">同时控制开关场、边缘和菜单模糊</string>
+    <string name="settings_blur_app_transition">应用开关场模糊</string>
+    <string name="settings_blur_app_transition_desc">控制打开和退出应用时的模糊</string>
+    <string name="settings_blur_edge_gradient">界面上下边缘模糊</string>
+    <string name="settings_blur_edge_gradient_desc">控制桌面和列表顶部底部的边缘模糊</string>
+    <string name="settings_blur_menu_background">长按菜单背景模糊</string>
+    <string name="settings_blur_menu_background_desc">控制长按菜单弹出时的背景模糊</string>
+    <string name="settings_blur_radius">默认模糊半径</string>
+
+    <string name="settings_section_animation">动画</string>
+    <string name="settings_animation_override">系统接管过渡动画</string>
+    <string name="settings_animation_override_desc">关闭后交给系统处理应用切换动画</string>
+    <string name="settings_splash_icon">开启动画图标遮罩</string>
+    <string name="settings_splash_icon_desc">打开应用时显示居中图标</string>
+    <string name="settings_splash_delay">图标遮罩延迟</string>
+    <string name="settings_app_open_duration">应用打开动画时长</string>
+    <string name="settings_app_return_duration">返回桌面动画时长</string>
+
+    <string name="settings_section_icons">图标</string>
+    <string name="settings_low_res_icons">低分辨率图标缓存</string>
+    <string name="settings_low_res_icons_desc">降低缓存尺寸，优先保证滚动流畅</string>
+    <string name="settings_icon_auto_size">自动适配图标尺寸</string>
+    <string name="settings_icon_auto_size_desc">按设备分辨率自动选择尺寸</string>
+    <string name="settings_icon_preset_auto">自动</string>
+    <string name="settings_icon_preset_compact">紧凑</string>
+    <string name="settings_icon_preset_standard">标准</string>
+    <string name="settings_icon_preset_large">大号</string>
+    <string name="settings_icon_preset_xlarge">超大</string>
+    <string name="settings_list_icon_size">列表图标大小</string>
+
+    <string name="settings_section_honeycomb">蜂窝参数</string>
+    <string name="settings_honeycomb_cols">窄行列数</string>
+    <string name="settings_honeycomb_top_blur">顶部模糊半径</string>
+    <string name="settings_honeycomb_bottom_blur">底部模糊半径</string>
+    <string name="settings_honeycomb_top_fade">顶部渐隐范围</string>
+    <string name="settings_honeycomb_bottom_fade">底部渐隐范围</string>
+
+    <string name="settings_show_notification">显示通知层</string>
+    <string name="settings_show_notification_desc">从表盘下滑时展示通知层</string>
+
+    <string name="settings_section_tools">工具</string>
+    <string name="settings_export_log">导出日志</string>
+    <string name="settings_export_failed">导出失败</string>
+    <string name="settings_export_chooser_title">导出日志</string>
+    <string name="settings_restore_defaults">恢复默认设置</string>
+    <string name="settings_back">返回</string>
+
+    <string name="settings_value_dp">%1$d dp</string>
+    <string name="settings_value_ms">%1$d ms</string>
+
+    <string name="crash_title">启动器发生崩溃</string>
+    <string name="crash_summary_label">摘要</string>
+    <string name="crash_copy_log">复制完整日志</string>
+    <string name="crash_restart_launcher">重启启动器</string>
+    <string name="crash_app_settings">打开应用详情</string>
+    <string name="crash_close">关闭页面</string>
 </resources>

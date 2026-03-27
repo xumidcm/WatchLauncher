@@ -72,6 +72,8 @@ fun ListDrawerScreen(
     edgeBlurEnabled: Boolean = false,
     suppressHeavyEffects: Boolean = false,
     iconSize: Dp = 48.dp,
+    iconScaleMultiplier: Float = 1f,
+    menuBlurEnabled: Boolean = true,
     onAppClick: (AppInfo, Offset) -> Unit,
     onReorder: (Int, Int) -> Unit = { _, _ -> },
     onLongClick: (AppInfo) -> Unit = {},
@@ -185,8 +187,10 @@ fun ListDrawerScreen(
         ) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val screenCenterY = screenHeightPx / 2f
-            val estimatedItemHeight = iconSize.coerceAtLeast(48.dp) + 20.dp
-            val centeredPadding = ((maxHeight - estimatedItemHeight) / 2f).coerceAtLeast(0.dp)
+            val scaledIconSize = iconSize * iconScaleMultiplier.coerceIn(0.8f, 1.35f)
+            val estimatedItemHeight = scaledIconSize.coerceAtLeast(48.dp) + 20.dp
+            val topPadding = 24.dp
+            val bottomPadding = (estimatedItemHeight + 16.dp).coerceAtLeast(56.dp)
             val dragRowShift = dragFromIndex?.let { itemHeights[it] } ?: with(density) { estimatedItemHeight.toPx() }
 
             LazyColumn(
@@ -196,8 +200,8 @@ fun ListDrawerScreen(
                     .graphicsLayer { translationY = overscroll.value }
                     .background(Color.Black),
                 contentPadding = PaddingValues(
-                    top = centeredPadding,
-                    bottom = centeredPadding,
+                    top = topPadding,
+                    bottom = bottomPadding,
                     start = 12.dp,
                     end = 12.dp
                 ),
@@ -273,7 +277,7 @@ fun ListDrawerScreen(
                             bitmap = if (useSoftBlur) app.cachedBlurredIcon else app.cachedIcon,
                             contentDescription = app.label,
                             modifier = Modifier
-                                .size(iconSize)
+                                .size(scaledIconSize)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
@@ -306,7 +310,7 @@ fun ListDrawerScreen(
     }
 
     longPressedApp?.let { app ->
-        AppShortcutOverlay(app = app, blurEnabled = blurEnabled, onDismiss = { longPressedApp = null })
+        AppShortcutOverlay(app = app, blurEnabled = menuBlurEnabled, onDismiss = { longPressedApp = null })
     }
 }
 
