@@ -206,7 +206,7 @@ fun LauncherSettingsSheet(
                     valueRange = 0f..24f,
                     steps = 23,
                     scale = scale,
-                    valueTextFor = { stringResource(R.string.settings_value_dp, it.toInt()) },
+                    valueTextFor = { "${it.toInt()} dp" },
                     onValueCommitted = { onBlurRadiusChange(it.toInt()) }
                 )
             }
@@ -242,7 +242,7 @@ fun LauncherSettingsSheet(
                     valueRange = 120f..1200f,
                     steps = 17,
                     scale = scale,
-                    valueTextFor = { stringResource(R.string.settings_value_ms, it.toInt()) },
+                    valueTextFor = { "${it.toInt()} ms" },
                     onValueCommitted = { onAppReturnAnimationDurationChange(it.toInt()) }
                 )
             }
@@ -287,7 +287,7 @@ fun LauncherSettingsSheet(
                         description = if (preset == IconScalePreset.AUTO) {
                             stringResource(R.string.settings_icon_auto_size_desc)
                         } else {
-                            stringResource(R.string.settings_value_dp, preset.listIconSizeDp)
+                            "${preset.listIconSizeDp} dp"
                         },
                         selected = IconScalePreset.fromStorage(iconScalePreset) == preset,
                         enabled = !autoIconSize || preset == IconScalePreset.AUTO,
@@ -305,7 +305,7 @@ fun LauncherSettingsSheet(
                         valueRange = 40f..84f,
                         steps = 10,
                         scale = scale,
-                        valueTextFor = { stringResource(R.string.settings_value_dp, it.toInt()) },
+                        valueTextFor = { "${it.toInt()} dp" },
                         onValueCommitted = { onListIconSizeChange(it.toInt()) }
                     )
                 }
@@ -336,7 +336,7 @@ fun LauncherSettingsSheet(
                         steps = 11,
                         enabled = edgeGradientBlurEnabled && blurEnabled,
                         scale = scale,
-                        valueTextFor = { stringResource(R.string.settings_value_dp, it.toInt()) },
+                        valueTextFor = { "${it.toInt()} dp" },
                         onValueCommitted = { onHoneycombTopBlurChange(it.toInt()) }
                     )
                 }
@@ -349,7 +349,7 @@ fun LauncherSettingsSheet(
                         steps = 11,
                         enabled = edgeGradientBlurEnabled && blurEnabled,
                         scale = scale,
-                        valueTextFor = { stringResource(R.string.settings_value_dp, it.toInt()) },
+                        valueTextFor = { "${it.toInt()} dp" },
                         onValueCommitted = { onHoneycombBottomBlurChange(it.toInt()) }
                     )
                 }
@@ -361,7 +361,7 @@ fun LauncherSettingsSheet(
                         valueRange = 0f..160f,
                         steps = 15,
                         scale = scale,
-                        valueTextFor = { stringResource(R.string.settings_value_dp, it.toInt()) },
+                        valueTextFor = { "${it.toInt()} dp" },
                         onValueCommitted = { onHoneycombTopFadeChange(it.toInt()) }
                     )
                 }
@@ -373,7 +373,7 @@ fun LauncherSettingsSheet(
                         valueRange = 0f..160f,
                         steps = 15,
                         scale = scale,
-                        valueTextFor = { stringResource(R.string.settings_value_dp, it.toInt()) },
+                        valueTextFor = { "${it.toInt()} dp" },
                         onValueCommitted = { onHoneycombBottomFadeChange(it.toInt()) }
                     )
                 }
