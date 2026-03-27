@@ -95,6 +95,7 @@ fun ListDrawerScreen(
     val effectiveEdgeBlur = edgeBlurEnabled && !suppressHeavyEffects
 
     var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
+    var pressedAppKey by remember { mutableStateOf<String?>(null) }
     val itemCenters = remember { mutableMapOf<Int, Float>() }
     val itemHeights = remember { mutableMapOf<Int, Float>() }
     val overscroll = remember { Animatable(0f) }
@@ -223,14 +224,28 @@ fun ListDrawerScreen(
                     val interactionSource = remember(app.componentKey) { MutableInteractionSource() }
                     val isPressed by interactionSource.collectIsPressedAsState()
                     val isDragged = dragFromIndex == index
+                    val activePressKey = if (isDragged) app.componentKey else pressedAppKey
                     val displacedTarget = listDisplacementForIndex(index, dragFromIndex, dragCurrentIndex, dragRowShift)
+                    val neighborMotion = listNeighborPressMotion(
+                        appKey = app.componentKey,
+                        pressedAppKey = activePressKey,
+                        index = index,
+                        apps = apps,
+                        itemCenters = itemCenters,
+                        itemHeights = itemHeights
+                    )
                     val animatedDisplacement by animateFloatAsState(
-                        targetValue = if (isDragged) dragOffsetY else displacedTarget,
+                        targetValue = if (isDragged) dragOffsetY else displacedTarget + neighborMotion.shiftY,
                         animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
                         label = "list_drag_displacement"
                     )
                     val pressedScale by animateFloatAsState(
-                        targetValue = if (isPressed || isDragged) 0.97f else 1f,
+                        targetValue = when {
+                            isDragged -> 1.03f
+                            isPressed -> 0.97f
+                            neighborMotion.scaleReduction > 0f -> 1f - neighborMotion.scaleReduction
+                            else -> 1f
+                        },
                         animationSpec = tween(durationMillis = 170),
                         label = "list_press_scale"
                     )
@@ -307,6 +322,16 @@ fun ListDrawerScreen(
                             color = Color.White
                         )
                     }
+
+                    LaunchedEffect(isPressed, isDragged) {
+                        if (!isDragged) {
+                            pressedAppKey = if (isPressed) {
+                                app.componentKey
+                            } else {
+                                pressedAppKey.takeUnless { it == app.componentKey }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -382,6 +407,36 @@ private fun findNearestListIndex(
         }
     }
     return bestIndex
+}
+
+private data class ListNeighborMotion(
+    val shiftY: Float = 0f,
+    val scaleReduction: Float = 0f
+)
+
+private fun listNeighborPressMotion(
+    appKey: String,
+    pressedAppKey: String?,
+    index: Int,
+    apps: List<AppInfo>,
+    itemCenters: Map<Int, Float>,
+    itemHeights: Map<Int, Float>
+): ListNeighborMotion {
+    if (pressedAppKey == null || pressedAppKey == appKey) return ListNeighborMotion()
+    val pressedIndex = apps.indexOfFirst { it.componentKey == pressedAppKey }
+    if (pressedIndex < 0) return ListNeighborMotion()
+    val currentCenter = itemCenters[index] ?: return ListNeighborMotion()
+    val pressedCenter = itemCenters[pressedIndex] ?: return ListNeighborMotion()
+    val rowHeight = itemHeights[index] ?: return ListNeighborMotion()
+    val distance = abs(currentCenter - pressedCenter)
+    val range = rowHeight * 1.8f
+    val progress = (1f - distance / range).coerceIn(0f, 1f)
+    if (progress <= 0f) return ListNeighborMotion()
+    val direction = if (currentCenter > pressedCenter) -1f else 1f
+    return ListNeighborMotion(
+        shiftY = direction * rowHeight * 0.08f * progress,
+        scaleReduction = 0.04f * progress
+    )
 }
 
 private fun computeItemScale(

@@ -60,6 +60,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_APP_RETURN_ANIM_DURATION = intPreferencesKey("app_return_anim_duration")
 
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
+        val KEY_HIDDEN_COMPONENTS = stringPreferencesKey("hidden_components")
         val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
         val KEY_HONEYCOMB_FISHEYE = booleanPreferencesKey("honeycomb_fisheye_enabled")
         val KEY_HONEYCOMB_TOP_BLUR = intPreferencesKey("honeycomb_top_blur")
@@ -124,6 +125,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _appOrder = MutableStateFlow<List<String>>(emptyList())
     val appOrder: StateFlow<List<String>> = _appOrder.asStateFlow()
+
+    private val _hiddenComponents = MutableStateFlow<Set<String>>(emptySet())
+    val hiddenComponents: StateFlow<Set<String>> = _hiddenComponents.asStateFlow()
 
     private val _honeycombCols = MutableStateFlow(LauncherDefaults.honeycombCols)
     val honeycombCols: StateFlow<Int> = _honeycombCols.asStateFlow()
@@ -203,6 +207,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val order = if (!orderStr.isNullOrEmpty()) orderStr.split(",") else emptyList()
         _appOrder.value = order
         appRepository.setCustomOrder(order)
+        _hiddenComponents.value = prefs[KEY_HIDDEN_COMPONENTS]
+            ?.split(",")
+            ?.filter { it.isNotBlank() }
+            ?.toSet()
+            ?: emptySet()
+        appRepository.setHiddenComponents(_hiddenComponents.value)
 
         _honeycombCols.value = (prefs[KEY_HONEYCOMB_COLS] ?: LauncherDefaults.honeycombCols).coerceIn(3, 6)
         _honeycombFisheyeEnabled.value = prefs[KEY_HONEYCOMB_FISHEYE] ?: true
@@ -481,6 +491,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { store.edit { it[KEY_APP_ORDER] = order.joinToString(",") } }
     }
 
+    fun setHiddenComponents(hidden: Set<String>) {
+        _hiddenComponents.value = hidden
+        appRepository.setHiddenComponents(hidden)
+        viewModelScope.launch {
+            store.edit { it[KEY_HIDDEN_COMPONENTS] = hidden.joinToString(",") }
+        }
+    }
+
     fun setListIconSize(size: Int) {
         _listIconSize.value = size.coerceIn(32, 80)
         _iconSizeAuto.value = false
@@ -568,6 +586,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _honeycombTopFade.value = LauncherDefaults.honeycombFadeDp
         _honeycombBottomFade.value = LauncherDefaults.honeycombFadeDp
         _showNotification.value = true
+        _hiddenComponents.value = emptySet()
 
         syncUiConfig()
         appRepository.refresh(resolveIconCacheSize())
@@ -588,6 +607,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefs[KEY_HONEYCOMB_TOP_FADE] = LauncherDefaults.honeycombFadeDp
                 prefs[KEY_HONEYCOMB_BOTTOM_FADE] = LauncherDefaults.honeycombFadeDp
                 prefs[KEY_SHOW_NOTIFICATION] = true
+                prefs[KEY_HIDDEN_COMPONENTS] = ""
             }
         }
     }

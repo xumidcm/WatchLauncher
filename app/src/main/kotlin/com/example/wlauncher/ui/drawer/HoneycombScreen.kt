@@ -80,7 +80,7 @@ fun HoneycombScreen(
         val touchSlop = viewConfiguration.touchSlop
 
         val maxCols = narrowCols + 1
-        val availableWidth = screenWidthPx - with(density) { 20.dp.toPx() }
+        val availableWidth = screenWidthPx - with(density) { 32.dp.toPx() }
         val iconSizePx = (availableWidth / (maxCols + 0.35f)).coerceIn(
             with(density) { 54.dp.toPx() },
             with(density) { 84.dp.toPx() }
