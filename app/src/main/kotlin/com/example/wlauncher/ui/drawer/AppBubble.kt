@@ -34,6 +34,7 @@ fun AppBubble(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     forcePressed: Boolean = false,
+    forceScaleTarget: Float? = null,
     pressScaleTarget: Float = 0.9f,
     pressAnimationDelayMillis: Int = 0,
     pressAnimationDurationMillis: Int = 180,
@@ -43,8 +44,13 @@ fun AppBubble(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val activePressed = isPressed || forcePressed
+    val activeScaleTarget = when {
+        forcePressed -> forceScaleTarget ?: pressScaleTarget
+        isPressed -> pressScaleTarget
+        else -> 1f
+    }
     val pressedScale by animateFloatAsState(
-        targetValue = if (activePressed) pressScaleTarget else 1f,
+        targetValue = activeScaleTarget,
         animationSpec = tween(
             durationMillis = pressAnimationDurationMillis,
             delayMillis = if (activePressed) pressAnimationDelayMillis else 0
@@ -69,7 +75,7 @@ fun AppBubble(
             .size(size)
             .clip(CircleShape)
             .graphicsLayer {
-                shadowElevation = 8.dp.toPx()
+                shadowElevation = if (forcePressed) 18.dp.toPx() else 8.dp.toPx()
                 shape = CircleShape
                 clip = true
                 scaleX = pressedScale

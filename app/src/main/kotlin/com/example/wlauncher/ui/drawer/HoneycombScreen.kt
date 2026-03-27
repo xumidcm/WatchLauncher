@@ -7,8 +7,8 @@ import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,19 +27,25 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.dp
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.ui.anim.platformBlur
 import com.example.wlauncher.util.fisheyeScale
 import com.example.wlauncher.util.generateHoneycombRows
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.sqrt
 
-private const val HONEYCOMB_PRESS_DELAY_MS = 220
+private const val HONEYCOMB_DRAG_ARM_MS = 500L
+private const val HONEYCOMB_MENU_TRIGGER_MS = 1000L
+private const val HONEYCOMB_MENU_TO_DRAG_MS = 1500L
 private const val HONEYCOMB_PRESS_DURATION_MS = 240
 
 @Composable
@@ -62,6 +68,7 @@ fun HoneycombScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val viewConfiguration = LocalViewConfiguration.current
     var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
     var pressedAppKey by remember { mutableStateOf<String?>(null) }
     var dragFromIndex by remember { mutableStateOf<Int?>(null) }
@@ -76,6 +83,7 @@ fun HoneycombScreen(
         val screenCenterX = screenWidthPx / 2f
         val screenCenterY = screenHeightPx / 2f
         val screenRadius = minOf(screenWidthPx, screenHeightPx) / 2f
+        val touchSlop = viewConfiguration.touchSlop
 
         val maxCols = narrowCols + 1
         val availableWidth = screenWidthPx - with(density) { 20.dp.toPx() }
@@ -99,76 +107,68 @@ fun HoneycombScreen(
 
         val scrollOffset = remember { Animatable(0f) }
         val scope = rememberCoroutineScope()
-        val overlayBlurActive = longPressedApp != null && blurEnabled && !suppressHeavyEffects
+        val overlayBlurActive = longPressedApp != null && menuBlurEnabled && !suppressHeavyEffects
+
+        fun beginDrag(index: Int) {
+            if (dragFromIndex != null) return
+            dragFromIndex = index
+            dragCurrentIndex = index
+            dragOffset = Offset.Zero
+            pressedAppKey = apps.getOrNull(index)?.componentKey
+            vibrateHaptic(context)
+        }
+
+        fun updateDrag(index: Int, delta: Offset, pointer: Offset) {
+            dragOffset += delta
+            val autoScroll = edgeAutoScrollDelta(
+                pointerY = pointer.y,
+                viewportHeight = screenHeightPx,
+                threshold = iconSizePx * 1.18f,
+                maxStep = iconSizePx * 0.22f
+            )
+            if (autoScroll != 0f) {
+                scope.launch {
+                    scrollOffset.snapTo((scrollOffset.value + autoScroll).coerceIn(minScroll, maxScroll))
+                }
+                dragOffset += Offset(0f, autoScroll)
+            }
+            val dragTarget = findNearestHoneycombIndex(
+                pointer = pointer,
+                positions = positions,
+                screenCenterX = screenCenterX,
+                screenCenterY = screenCenterY + scrollOffset.value,
+                maxDistance = cellSize * 0.95f
+            )
+            dragCurrentIndex = dragTarget ?: index
+        }
+
+        fun finishDrag() {
+            val from = dragFromIndex
+            val to = dragCurrentIndex
+            if (from != null && to != null && from != to) {
+                onReorder(from, to)
+            }
+            dragFromIndex = null
+            dragCurrentIndex = null
+            dragOffset = Offset.Zero
+            pressedAppKey = null
+        }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .platformBlur(16f, overlayBlurActive)
-                .pointerInput(apps, positions, scrollOffset.value) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { startOffset ->
-                            val startIndex = findNearestHoneycombIndex(
-                                pointer = startOffset,
-                                positions = positions,
-                                screenCenterX = screenCenterX,
-                                screenCenterY = screenCenterY + scrollOffset.value,
-                                maxDistance = iconSizePx * 0.7f
-                            )
-                            if (startIndex != null) {
-                                dragFromIndex = startIndex
-                                dragCurrentIndex = startIndex
-                                dragOffset = Offset.Zero
-                                pressedAppKey = apps.getOrNull(startIndex)?.componentKey
-                                vibrateHaptic(context)
-                            }
-                        },
-                        onDrag = { change, dragAmount ->
-                            val fromIndex = dragFromIndex ?: return@detectDragGesturesAfterLongPress
-                            change.consume()
-                            dragOffset += Offset(dragAmount.x, dragAmount.y)
-                            val dragTarget = findNearestHoneycombIndex(
-                                pointer = dragPointerCenter(
-                                    index = fromIndex,
-                                    positions = positions,
-                                    screenCenterX = screenCenterX,
-                                    screenCenterY = screenCenterY + scrollOffset.value,
-                                    dragOffset = dragOffset
-                                ),
-                                positions = positions,
-                                screenCenterX = screenCenterX,
-                                screenCenterY = screenCenterY + scrollOffset.value,
-                                maxDistance = cellSize * 0.95f
-                            )
-                            dragCurrentIndex = dragTarget ?: fromIndex
-                        },
-                        onDragEnd = {
-                            val from = dragFromIndex
-                            val to = dragCurrentIndex
-                            if (from != null && to != null && from != to) {
-                                onReorder(from, to)
-                            }
-                            dragFromIndex = null
-                            dragCurrentIndex = null
-                            dragOffset = Offset.Zero
-                            pressedAppKey = null
-                        },
-                        onDragCancel = {
-                            dragFromIndex = null
-                            dragCurrentIndex = null
-                            dragOffset = Offset.Zero
-                            pressedAppKey = null
-                        }
-                    )
-                }
                 .pointerInput(apps, positions, minScroll, maxScroll) {
                     val velocityTracker = VelocityTracker()
                     detectDragGestures(
                         onDragStart = {
-                            scope.launch { scrollOffset.stop() }
-                            velocityTracker.resetTracking()
+                            if (dragFromIndex == null) {
+                                scope.launch { scrollOffset.stop() }
+                                velocityTracker.resetTracking()
+                            }
                         },
                         onDrag = { change, dragAmount ->
+                            if (dragFromIndex != null) return@detectDragGestures
                             change.consume()
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
                             val current = scrollOffset.value
@@ -182,6 +182,7 @@ fun HoneycombScreen(
                             scope.launch { scrollOffset.snapTo(current + dampedDrag) }
                         },
                         onDragEnd = {
+                            if (dragFromIndex != null) return@detectDragGestures
                             val velocity = velocityTracker.calculateVelocity().y
                             val current = scrollOffset.value
                             if (current >= maxScroll - iconSizePx * 0.45f && velocity > 800f) {
@@ -216,12 +217,16 @@ fun HoneycombScreen(
             val currentScroll = scrollOffset.value
             val visibleTop = -iconSizePx * 1.5f
             val visibleBottom = screenHeightPx + iconSizePx * 1.5f
+            val renderOrder = remember(apps, dragFromIndex) {
+                apps.indices.sortedBy { if (it == dragFromIndex) 1 else 0 }
+            }
 
-            apps.forEachIndexed { index, app ->
-                if (index >= positions.size) return@forEachIndexed
+            renderOrder.forEach { index ->
+                if (index >= positions.size) return@forEach
+                val app = apps[index]
                 val gridPos = positions[index]
                 val posY = screenCenterY + gridPos.y + currentScroll
-                if (posY < visibleTop || posY > visibleBottom) return@forEachIndexed
+                if (posY < visibleTop || posY > visibleBottom) return@forEach
 
                 val topStrength = edgeStrength(posY, topFadePx)
                 val bottomStrength = edgeStrength(screenHeightPx - posY, bottomFadePx)
@@ -279,15 +284,11 @@ fun HoneycombScreen(
                             val syPos = screenCenterY + gridPos.y + sy
                             onAppClick(app, Offset(sx / screenWidthPx, syPos / screenHeightPx))
                         },
-                        onLongClick = {
-                            if (dragFromIndex == null) {
-                                onLongClick(app)
-                                longPressedApp = app
-                            }
-                        },
+                        onLongClick = null,
                         forcePressed = isDragged,
+                        forceScaleTarget = 1.06f,
                         pressScaleTarget = 0.88f,
-                        pressAnimationDelayMillis = if (isDragged) 0 else HONEYCOMB_PRESS_DELAY_MS,
+                        pressAnimationDelayMillis = 0,
                         pressAnimationDurationMillis = HONEYCOMB_PRESS_DURATION_MS,
                         onPressedChange = { pressed ->
                             if (!isDragged) {
@@ -295,6 +296,77 @@ fun HoneycombScreen(
                             }
                         },
                         modifier = Modifier
+                            .pointerInput(appKey, dragFromIndex, longPressedApp, scrollOffset.value) {
+                                awaitPointerEventScope {
+                                    while (true) {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        var dragArmed = false
+                                        var menuShown = false
+                                        var dragStarted = false
+                                        var stillPressed = true
+                                        var totalMovement = Offset.Zero
+
+                                        kotlinx.coroutines.coroutineScope {
+                                            val armJob = launch {
+                                                delay(500)
+                                                if (stillPressed && dragFromIndex == null) {
+                                                    dragArmed = true
+                                                }
+                                            }
+                                            val menuJob = launch {
+                                                delay(1000)
+                                                if (stillPressed && !dragStarted && totalMovement.getDistance() < touchSlop && dragFromIndex == null) {
+                                                    menuShown = true
+                                                    longPressedApp = app
+                                                    onLongClick(app)
+                                                }
+                                            }
+                                            val menuToDragJob = launch {
+                                                delay(1500)
+                                                if (stillPressed && menuShown && !dragStarted && dragFromIndex == null) {
+                                                    longPressedApp = null
+                                                    beginDrag(index)
+                                                    dragStarted = true
+                                                }
+                                            }
+
+                                            while (stillPressed) {
+                                                val event = awaitPointerEvent()
+                                                val change = event.changes.firstOrNull { it.id == down.id } ?: continue
+                                                if (!change.pressed) {
+                                                    stillPressed = false
+                                                    break
+                                                }
+                                                val delta = change.position - change.previousPosition
+                                                totalMovement += delta
+                                                if (!menuShown && !dragStarted && dragArmed && totalMovement.getDistance() > touchSlop) {
+                                                    beginDrag(index)
+                                                    dragStarted = true
+                                                }
+                                                if (dragStarted) {
+                                                    change.consume()
+                                                    val pointer = dragPointerCenter(
+                                                        index = index,
+                                                        positions = positions,
+                                                        screenCenterX = screenCenterX,
+                                                        screenCenterY = screenCenterY + scrollOffset.value,
+                                                        dragOffset = dragOffset + delta
+                                                    )
+                                                    updateDrag(index, delta, pointer)
+                                                }
+                                            }
+
+                                            armJob.cancel()
+                                            menuJob.cancel()
+                                            menuToDragJob.cancel()
+                                        }
+
+                                        if (dragStarted) {
+                                            finishDrag()
+                                        }
+                                    }
+                                }
+                            }
                             .graphicsLayer {
                                 val sy = scrollOffset.value
                                 val posX = screenCenterX + gridPos.x
@@ -315,6 +387,7 @@ fun HoneycombScreen(
                                 val scale = fisheyeScale(dist, screenRadius * 1.65f, minScale = 0.58f)
                                 scaleX = scale * animatedNeighborScale
                                 scaleY = scale * animatedNeighborScale
+                                shadowElevation = if (isDragged) 18.dp.toPx() else 0f
                                 alpha = scale.coerceIn(0.24f, 1f)
                             }
                             .platformBlur(
