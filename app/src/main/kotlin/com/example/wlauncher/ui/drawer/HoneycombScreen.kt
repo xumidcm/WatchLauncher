@@ -116,9 +116,11 @@ fun HoneycombScreen(
             dragOffset += delta
             val autoScroll = edgeAutoScrollDelta(
                 pointerY = pointer.y,
-                viewportHeight = screenHeightPx,
-                threshold = iconSizePx * 1.18f,
-                maxStep = iconSizePx * 0.22f
+                spec = DrawerEdgeAutoScrollSpec(
+                    viewportHeight = screenHeightPx,
+                    threshold = iconSizePx * 1.18f,
+                    maxStep = iconSizePx * 0.22f
+                )
             )
             if (autoScroll != 0f) {
                 scope.launch {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -32,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -41,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,6 +53,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -86,6 +91,7 @@ fun ListDrawerScreen(
     val context = LocalContext.current
     val viewConfiguration = LocalViewConfiguration.current
     val scope = rememberCoroutineScope()
+    val focusRequester = remember { FocusRequester() }
     val effectiveEdgeBlur = edgeBlurEnabled && !suppressHeavyEffects
 
     var longPressedApp by remember { mutableStateOf<AppInfo?>(null) }
@@ -108,9 +114,11 @@ fun ListDrawerScreen(
         dragOffsetY += deltaY
         val autoScroll = edgeAutoScrollDelta(
             pointerY = pointerY,
-            viewportHeight = viewportHeight,
-            threshold = with(density) { 72.dp.toPx() },
-            maxStep = with(density) { 18.dp.toPx() }
+            spec = DrawerEdgeAutoScrollSpec(
+                viewportHeight = viewportHeight,
+                threshold = with(density) { 72.dp.toPx() },
+                maxStep = with(density) { 18.dp.toPx() }
+            )
         )
         if (autoScroll != 0f) {
             dragOffsetY += autoScroll
@@ -171,22 +179,25 @@ fun ListDrawerScreen(
                     }
                 )
                 .platformBlur(16f, longPressedApp != null && blurEnabled && !suppressHeavyEffects)
+                .focusRequester(focusRequester)
+                .focusable()
+                .onRotaryScrollEvent { event ->
+                    scope.launch { listState.scrollBy(-event.verticalScrollPixels) }
+                    true
+                }
         ) {
             val screenHeightPx = with(density) { maxHeight.toPx() }
             val screenCenterY = screenHeightPx / 2f
-            val autoScrollSpec = remember(screenHeightPx, density) {
-                DrawerEdgeAutoScrollSpec(
-                    viewportHeight = screenHeightPx,
-                    threshold = with(density) { 72.dp.toPx() },
-                    maxStep = with(density) { 18.dp.toPx() }
-                )
-            }
             val scaledIconSize = iconSize * iconScaleMultiplier.coerceIn(0.8f, 1.35f)
             val estimatedItemHeight = scaledIconSize.coerceAtLeast(48.dp) + 20.dp
             val topPadding = 24.dp
             val bottomPadding = (estimatedItemHeight + 16.dp).coerceAtLeast(56.dp)
             val dragRowShift = dragFromIndex?.let { itemHeights[it] } ?: with(density) { estimatedItemHeight.toPx() }
             val touchSlop = viewConfiguration.touchSlop
+
+            LaunchedEffect(Unit) {
+                focusRequester.requestFocus()
+            }
 
             LazyColumn(
                 state = listState,

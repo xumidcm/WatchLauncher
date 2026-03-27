@@ -33,6 +33,7 @@ class AppRepository(private val context: Context) {
     val apps: StateFlow<List<AppInfo>> = _apps.asStateFlow()
 
     private var customOrder: List<String> = emptyList()
+    private var hiddenComponents: Set<String> = emptySet()
 
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -53,6 +54,11 @@ class AppRepository(private val context: Context) {
 
     fun setCustomOrder(order: List<String>) {
         customOrder = order
+        reorder()
+    }
+
+    fun setHiddenComponents(hidden: Set<String>) {
+        hiddenComponents = hidden
         reorder()
     }
 
@@ -83,6 +89,7 @@ class AppRepository(private val context: Context) {
                     cachedBlurredIcon = createSoftenedBitmap(cachedBitmap).asImageBitmap()
                 )
             }
+            .filterNot { hiddenComponents.contains(it.componentKey) }
             .let(::applyOrdering)
     }
 
@@ -148,7 +155,7 @@ class AppRepository(private val context: Context) {
     }
 
     private fun reorder() {
-        _apps.value = applyOrdering(_apps.value)
+        _apps.value = applyOrdering(_apps.value.filterNot { hiddenComponents.contains(it.componentKey) })
     }
 
     private fun buildExplicitLaunchIntent(appInfo: AppInfo): Intent {
