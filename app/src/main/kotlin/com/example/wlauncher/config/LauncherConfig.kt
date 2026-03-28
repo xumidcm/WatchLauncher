@@ -92,8 +92,6 @@ data class LayoutConfig(
     val mode: LayoutMode = LayoutMode.Honeycomb,
     val honeycombCols: Int = LauncherDefaults.honeycombCols,
     val honeycombFisheyeEnabled: Boolean = true,
-    val honeycombTopBlurDp: Int = LauncherDefaults.blurRadiusDp,
-    val honeycombBottomBlurDp: Int = LauncherDefaults.blurRadiusDp,
     val honeycombTopFadeDp: Int = LauncherDefaults.honeycombFadeDp,
     val honeycombBottomFadeDp: Int = LauncherDefaults.honeycombFadeDp
 )

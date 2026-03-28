@@ -63,8 +63,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_HIDDEN_COMPONENTS = stringPreferencesKey("hidden_components")
         val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
         val KEY_HONEYCOMB_FISHEYE = booleanPreferencesKey("honeycomb_fisheye_enabled")
-        val KEY_HONEYCOMB_TOP_BLUR = intPreferencesKey("honeycomb_top_blur")
-        val KEY_HONEYCOMB_BOTTOM_BLUR = intPreferencesKey("honeycomb_bottom_blur")
         val KEY_HONEYCOMB_TOP_FADE = intPreferencesKey("honeycomb_top_fade")
         val KEY_HONEYCOMB_BOTTOM_FADE = intPreferencesKey("honeycomb_bottom_fade")
         val KEY_SHOW_NOTIFICATION = booleanPreferencesKey("show_notification")
@@ -135,12 +133,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val _honeycombFisheyeEnabled = MutableStateFlow(true)
     val honeycombFisheyeEnabled: StateFlow<Boolean> = _honeycombFisheyeEnabled.asStateFlow()
 
-    private val _honeycombTopBlur = MutableStateFlow(LauncherDefaults.blurRadiusDp)
-    val honeycombTopBlur: StateFlow<Int> = _honeycombTopBlur.asStateFlow()
-
-    private val _honeycombBottomBlur = MutableStateFlow(LauncherDefaults.blurRadiusDp)
-    val honeycombBottomBlur: StateFlow<Int> = _honeycombBottomBlur.asStateFlow()
-
     private val _honeycombTopFade = MutableStateFlow(LauncherDefaults.honeycombFadeDp)
     val honeycombTopFade: StateFlow<Int> = _honeycombTopFade.asStateFlow()
 
@@ -158,6 +150,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _currentApp = MutableStateFlow<AppInfo?>(null)
     val currentApp: StateFlow<AppInfo?> = _currentApp.asStateFlow()
+
+    private val _listScrollIndex = MutableStateFlow(0)
+    val listScrollIndex: StateFlow<Int> = _listScrollIndex.asStateFlow()
+
+    private val _listScrollOffset = MutableStateFlow(0)
+    val listScrollOffset: StateFlow<Int> = _listScrollOffset.asStateFlow()
+
+    private val _honeycombScrollOffset = MutableStateFlow(0f)
+    val honeycombScrollOffset: StateFlow<Float> = _honeycombScrollOffset.asStateFlow()
 
     private var launchingExternalApp = false
     private var launchJob: Job? = null
@@ -216,8 +217,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
         _honeycombCols.value = (prefs[KEY_HONEYCOMB_COLS] ?: LauncherDefaults.honeycombCols).coerceIn(3, 6)
         _honeycombFisheyeEnabled.value = prefs[KEY_HONEYCOMB_FISHEYE] ?: true
-        _honeycombTopBlur.value = (prefs[KEY_HONEYCOMB_TOP_BLUR] ?: LauncherDefaults.blurRadiusDp).coerceIn(0, 48)
-        _honeycombBottomBlur.value = (prefs[KEY_HONEYCOMB_BOTTOM_BLUR] ?: LauncherDefaults.blurRadiusDp).coerceIn(0, 48)
         _honeycombTopFade.value = (prefs[KEY_HONEYCOMB_TOP_FADE] ?: LauncherDefaults.honeycombFadeDp).coerceIn(0, 160)
         _honeycombBottomFade.value = (prefs[KEY_HONEYCOMB_BOTTOM_FADE] ?: LauncherDefaults.honeycombFadeDp).coerceIn(0, 160)
         _showNotification.value = prefs[KEY_SHOW_NOTIFICATION] ?: true
@@ -289,8 +288,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 mode = _layoutMode.value,
                 honeycombCols = _honeycombCols.value,
                 honeycombFisheyeEnabled = _honeycombFisheyeEnabled.value,
-                honeycombTopBlurDp = _honeycombTopBlur.value,
-                honeycombBottomBlurDp = _honeycombBottomBlur.value,
                 honeycombTopFadeDp = _honeycombTopFade.value,
                 honeycombBottomFadeDp = _honeycombBottomFade.value
             ),
@@ -499,6 +496,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setListDrawerScrollPosition(index: Int, offset: Int) {
+        _listScrollIndex.value = index.coerceAtLeast(0)
+        _listScrollOffset.value = offset.coerceAtLeast(0)
+    }
+
+    fun setHoneycombDrawerScrollOffset(offset: Float) {
+        _honeycombScrollOffset.value = offset
+    }
+
     fun setListIconSize(size: Int) {
         _listIconSize.value = size.coerceIn(32, 80)
         _iconSizeAuto.value = false
@@ -518,18 +524,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _honeycombFisheyeEnabled.value = enabled
         syncUiConfig()
         viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_FISHEYE] = enabled } }
-    }
-
-    fun setHoneycombTopBlur(value: Int) {
-        _honeycombTopBlur.value = value.coerceIn(0, 48)
-        syncUiConfig()
-        viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_TOP_BLUR] = _honeycombTopBlur.value } }
-    }
-
-    fun setHoneycombBottomBlur(value: Int) {
-        _honeycombBottomBlur.value = value.coerceIn(0, 48)
-        syncUiConfig()
-        viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_BOTTOM_BLUR] = _honeycombBottomBlur.value } }
     }
 
     fun setHoneycombTopFade(value: Int) {
@@ -581,14 +575,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
         _honeycombCols.value = LauncherDefaults.honeycombCols
         _honeycombFisheyeEnabled.value = true
-        _honeycombTopBlur.value = LauncherDefaults.blurRadiusDp
-        _honeycombBottomBlur.value = LauncherDefaults.blurRadiusDp
         _honeycombTopFade.value = LauncherDefaults.honeycombFadeDp
         _honeycombBottomFade.value = LauncherDefaults.honeycombFadeDp
         _showNotification.value = true
         _hiddenComponents.value = emptySet()
+        _listScrollIndex.value = 0
+        _listScrollOffset.value = 0
+        _honeycombScrollOffset.value = 0f
 
         syncUiConfig()
+        appRepository.setHiddenComponents(emptySet())
         appRepository.refresh(resolveIconCacheSize())
         viewModelScope.launch {
             store.edit { prefs ->
@@ -602,8 +598,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefs[KEY_APP_RETURN_ANIM_DURATION] = LauncherDefaults.appReturnAnimationDurationMs
                 prefs[KEY_HONEYCOMB_COLS] = LauncherDefaults.honeycombCols
                 prefs[KEY_HONEYCOMB_FISHEYE] = true
-                prefs[KEY_HONEYCOMB_TOP_BLUR] = LauncherDefaults.blurRadiusDp
-                prefs[KEY_HONEYCOMB_BOTTOM_BLUR] = LauncherDefaults.blurRadiusDp
                 prefs[KEY_HONEYCOMB_TOP_FADE] = LauncherDefaults.honeycombFadeDp
                 prefs[KEY_HONEYCOMB_BOTTOM_FADE] = LauncherDefaults.honeycombFadeDp
                 prefs[KEY_SHOW_NOTIFICATION] = true

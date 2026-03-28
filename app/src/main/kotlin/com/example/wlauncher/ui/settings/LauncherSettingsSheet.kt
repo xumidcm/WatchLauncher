@@ -61,8 +61,6 @@ fun LauncherSettingsSheet(
     listIconSize: Int = 48,
     honeycombCols: Int = 4,
     honeycombFisheyeEnabled: Boolean = true,
-    honeycombTopBlur: Int = 12,
-    honeycombBottomBlur: Int = 12,
     honeycombTopFade: Int = 56,
     honeycombBottomFade: Int = 56,
     showNotification: Boolean = true,
@@ -83,8 +81,6 @@ fun LauncherSettingsSheet(
     onListIconSizeChange: (Int) -> Unit = {},
     onHoneycombColsChange: (Int) -> Unit = {},
     onHoneycombFisheyeToggle: (Boolean) -> Unit = {},
-    onHoneycombTopBlurChange: (Int) -> Unit = {},
-    onHoneycombBottomBlurChange: (Int) -> Unit = {},
     onHoneycombTopFadeChange: (Int) -> Unit = {},
     onHoneycombBottomFadeChange: (Int) -> Unit = {},
     onShowNotificationChange: (Boolean) -> Unit = {},
@@ -337,32 +333,6 @@ fun LauncherSettingsSheet(
                         isOn = honeycombFisheyeEnabled,
                         onToggle = onHoneycombFisheyeToggle,
                         scale = scale
-                    )
-                }
-                item("honeycomb_top_blur") {
-                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_top_blur" }, screenCenterY, screenHeightPx)
-                    SliderCard(
-                        label = stringResource(R.string.settings_honeycomb_top_blur),
-                        value = honeycombTopBlur.toFloat(),
-                        valueRange = 0f..48f,
-                        steps = 11,
-                        enabled = edgeGradientBlurEnabled && blurEnabled,
-                        scale = scale,
-                        valueTextFor = { "${it.toInt()} dp" },
-                        onValueCommitted = { onHoneycombTopBlurChange(it.toInt()) }
-                    )
-                }
-                item("honeycomb_bottom_blur") {
-                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_bottom_blur" }, screenCenterY, screenHeightPx)
-                    SliderCard(
-                        label = stringResource(R.string.settings_honeycomb_bottom_blur),
-                        value = honeycombBottomBlur.toFloat(),
-                        valueRange = 0f..48f,
-                        steps = 11,
-                        enabled = edgeGradientBlurEnabled && blurEnabled,
-                        scale = scale,
-                        valueTextFor = { "${it.toInt()} dp" },
-                        onValueCommitted = { onHoneycombBottomBlurChange(it.toInt()) }
                     )
                 }
                 item("honeycomb_top_fade") {

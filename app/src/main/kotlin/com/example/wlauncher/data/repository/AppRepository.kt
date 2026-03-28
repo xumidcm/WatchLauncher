@@ -85,8 +85,7 @@ class AppRepository(private val context: Context) {
                     activityName = resolveInfo.activityInfo.name,
                     installedAt = resolveInstalledAt(pm, resolveInfo.activityInfo.packageName),
                     icon = iconDrawable,
-                    cachedIcon = cachedBitmap.asImageBitmap(),
-                    cachedBlurredIcon = createSoftenedBitmap(cachedBitmap).asImageBitmap()
+                    cachedIcon = cachedBitmap.asImageBitmap()
                 )
             }
             .filterNot { hiddenComponents.contains(it.componentKey) }
@@ -212,18 +211,6 @@ class AppRepository(private val context: Context) {
                 )
             }
         }
-    }
-
-    private fun createSoftenedBitmap(source: Bitmap): Bitmap {
-        val downscaled = Bitmap.createScaledBitmap(
-            source,
-            (source.width * 0.4f).toInt().coerceAtLeast(1),
-            (source.height * 0.4f).toInt().coerceAtLeast(1),
-            true
-        )
-        return createCircularBitmap(
-            Bitmap.createScaledBitmap(downscaled, source.width, source.height, true)
-        )
     }
 
     private fun createCircularBitmap(source: Bitmap): Bitmap {

@@ -122,10 +122,11 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val iconScalePreset by vm.iconSizePreset.collectAsState()
     val autoIconSize by vm.iconSizeAuto.collectAsState()
     val blurRadiusDp by vm.blurRadiusDp.collectAsState()
+    val listScrollIndex by vm.listScrollIndex.collectAsState()
+    val listScrollOffset by vm.listScrollOffset.collectAsState()
+    val honeycombScrollOffset by vm.honeycombScrollOffset.collectAsState()
     val honeycombCols by vm.honeycombCols.collectAsState()
     val honeycombFisheyeEnabled by vm.honeycombFisheyeEnabled.collectAsState()
-    val honeycombTopBlur by vm.honeycombTopBlur.collectAsState()
-    val honeycombBottomBlur by vm.honeycombBottomBlur.collectAsState()
     val honeycombTopFade by vm.honeycombTopFade.collectAsState()
     val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
     val showNotification by vm.showNotification.collectAsState()
@@ -201,10 +202,11 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         narrowCols = honeycombCols,
                         iconScaleMultiplier = iconScaleMultiplier,
                         fisheyeEnabled = honeycombFisheyeEnabled,
-                        topBlurRadiusDp = honeycombTopBlur,
-                        bottomBlurRadiusDp = honeycombBottomBlur,
                         topFadeRangeDp = honeycombTopFade,
                         bottomFadeRangeDp = honeycombBottomFade,
+                        blurRadiusDp = blurRadiusDp,
+                        initialScrollOffset = honeycombScrollOffset,
+                        onScrollOffsetChange = { vm.setHoneycombDrawerScrollOffset(it) },
                         onAppClick = { appInfo, origin ->
                             val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
                             vm.openApp(appInfo, origin, launchDelay)
@@ -223,6 +225,10 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         iconSize = listIconSize.dp,
                         iconScaleMultiplier = iconScaleMultiplier,
                         menuBlurEnabled = menuBlurEnabled,
+                        blurRadiusDp = blurRadiusDp,
+                        initialFirstVisibleItemIndex = listScrollIndex,
+                        initialFirstVisibleItemOffset = listScrollOffset,
+                        onScrollPositionChange = { index, offset -> vm.setListDrawerScrollPosition(index, offset) },
                         onAppClick = { appInfo, origin ->
                             val launchDelay = BASE_LAUNCH_MASK_DELAY_MS + if (splashIcon) splashDelay.toLong() else 0L
                             vm.openApp(appInfo, origin, launchDelay)
@@ -313,8 +319,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     listIconSize = listIconSize,
                     honeycombCols = honeycombCols,
                     honeycombFisheyeEnabled = honeycombFisheyeEnabled,
-                    honeycombTopBlur = honeycombTopBlur,
-                    honeycombBottomBlur = honeycombBottomBlur,
                     honeycombTopFade = honeycombTopFade,
                     honeycombBottomFade = honeycombBottomFade,
                     showNotification = showNotification,
@@ -335,8 +339,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onListIconSizeChange = { vm.setListIconSize(it) },
                     onHoneycombColsChange = { vm.setHoneycombCols(it) },
                     onHoneycombFisheyeToggle = { vm.setHoneycombFisheyeEnabled(it) },
-                    onHoneycombTopBlurChange = { vm.setHoneycombTopBlur(it) },
-                    onHoneycombBottomBlurChange = { vm.setHoneycombBottomBlur(it) },
                     onHoneycombTopFadeChange = { vm.setHoneycombTopFade(it) },
                     onHoneycombBottomFadeChange = { vm.setHoneycombBottomFade(it) },
                     onShowNotificationChange = { vm.setShowNotification(it) },

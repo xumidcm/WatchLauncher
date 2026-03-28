@@ -54,6 +54,7 @@ import kotlinx.coroutines.delay
 fun AppShortcutOverlay(
     app: AppInfo,
     blurEnabled: Boolean = true,
+    blurRadiusDp: Int = 4,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -96,7 +97,7 @@ fun AppShortcutOverlay(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.72f))
-                .platformBlur(blurRadiusDp = 4f, enabled = blurEnabled)
+                .platformBlur(blurRadiusDp = blurRadiusDp.toFloat(), enabled = blurEnabled)
         )
 
         val density = LocalDensity.current
