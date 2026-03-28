@@ -330,7 +330,7 @@ fun ListDrawerScreen(
                         itemCenters = itemCenters,
                         itemHeights = itemHeights
                     )
-                    val translationY by animateFloatAsState(
+                    val rowTranslationY by animateFloatAsState(
                         targetValue = if (isDragged) animatedDragOffsetY else displacedTarget + pulseMotion.shiftY,
                         animationSpec = spring(dampingRatio = 0.84f, stiffness = 460f),
                         label = "list_row_translation"
@@ -394,7 +394,7 @@ fun ListDrawerScreen(
                                     }
                                 }
                                 .graphicsLayer {
-                                    translationY = translationY
+                                    translationY = rowTranslationY
                                     scaleX = pressedScale
                                     scaleY = pressedScale
                                     alpha = if (isDragged) 0.98f else 1f
