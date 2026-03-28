@@ -60,7 +60,6 @@ fun LauncherSettingsSheet(
     splashDelay: Int = 500,
     listIconSize: Int = 48,
     honeycombCols: Int = 4,
-    honeycombFisheyeEnabled: Boolean = true,
     honeycombTopFade: Int = 56,
     honeycombBottomFade: Int = 56,
     showNotification: Boolean = true,
@@ -80,7 +79,6 @@ fun LauncherSettingsSheet(
     onSplashDelayChange: (Int) -> Unit = {},
     onListIconSizeChange: (Int) -> Unit = {},
     onHoneycombColsChange: (Int) -> Unit = {},
-    onHoneycombFisheyeToggle: (Boolean) -> Unit = {},
     onHoneycombTopFadeChange: (Int) -> Unit = {},
     onHoneycombBottomFadeChange: (Int) -> Unit = {},
     onShowNotificationChange: (Boolean) -> Unit = {},
@@ -323,16 +321,6 @@ fun LauncherSettingsSheet(
                         scale = scale,
                         valueTextFor = { it.toInt().toString() },
                         onValueCommitted = { onHoneycombColsChange(it.toInt()) }
-                    )
-                }
-                item("honeycomb_fisheye") {
-                    val scale = itemFisheye(listState.layoutInfo.visibleItemsInfo.find { it.key == "honeycomb_fisheye" }, screenCenterY, screenHeightPx)
-                    ToggleRow(
-                        label = stringResource(R.string.settings_honeycomb_fisheye),
-                        description = stringResource(R.string.settings_honeycomb_fisheye_desc),
-                        isOn = honeycombFisheyeEnabled,
-                        onToggle = onHoneycombFisheyeToggle,
-                        scale = scale
                     )
                 }
                 item("honeycomb_top_fade") {

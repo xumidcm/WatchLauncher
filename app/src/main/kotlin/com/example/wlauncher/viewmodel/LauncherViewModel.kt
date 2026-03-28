@@ -62,7 +62,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val KEY_APP_ORDER = stringPreferencesKey("app_order")
         val KEY_HIDDEN_COMPONENTS = stringPreferencesKey("hidden_components")
         val KEY_HONEYCOMB_COLS = intPreferencesKey("honeycomb_cols")
-        val KEY_HONEYCOMB_FISHEYE = booleanPreferencesKey("honeycomb_fisheye_enabled")
         val KEY_HONEYCOMB_TOP_FADE = intPreferencesKey("honeycomb_top_fade")
         val KEY_HONEYCOMB_BOTTOM_FADE = intPreferencesKey("honeycomb_bottom_fade")
         val KEY_SHOW_NOTIFICATION = booleanPreferencesKey("show_notification")
@@ -129,9 +128,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val _honeycombCols = MutableStateFlow(LauncherDefaults.honeycombCols)
     val honeycombCols: StateFlow<Int> = _honeycombCols.asStateFlow()
-
-    private val _honeycombFisheyeEnabled = MutableStateFlow(true)
-    val honeycombFisheyeEnabled: StateFlow<Boolean> = _honeycombFisheyeEnabled.asStateFlow()
 
     private val _honeycombTopFade = MutableStateFlow(LauncherDefaults.honeycombFadeDp)
     val honeycombTopFade: StateFlow<Int> = _honeycombTopFade.asStateFlow()
@@ -216,7 +212,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         appRepository.setHiddenComponents(_hiddenComponents.value)
 
         _honeycombCols.value = (prefs[KEY_HONEYCOMB_COLS] ?: LauncherDefaults.honeycombCols).coerceIn(3, 6)
-        _honeycombFisheyeEnabled.value = prefs[KEY_HONEYCOMB_FISHEYE] ?: true
         _honeycombTopFade.value = (prefs[KEY_HONEYCOMB_TOP_FADE] ?: LauncherDefaults.honeycombFadeDp).coerceIn(0, 160)
         _honeycombBottomFade.value = (prefs[KEY_HONEYCOMB_BOTTOM_FADE] ?: LauncherDefaults.honeycombFadeDp).coerceIn(0, 160)
         _showNotification.value = prefs[KEY_SHOW_NOTIFICATION] ?: true
@@ -287,7 +282,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             layout = LayoutConfig(
                 mode = _layoutMode.value,
                 honeycombCols = _honeycombCols.value,
-                honeycombFisheyeEnabled = _honeycombFisheyeEnabled.value,
                 honeycombTopFadeDp = _honeycombTopFade.value,
                 honeycombBottomFadeDp = _honeycombBottomFade.value
             ),
@@ -520,12 +514,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_COLS] = _honeycombCols.value } }
     }
 
-    fun setHoneycombFisheyeEnabled(enabled: Boolean) {
-        _honeycombFisheyeEnabled.value = enabled
-        syncUiConfig()
-        viewModelScope.launch { store.edit { it[KEY_HONEYCOMB_FISHEYE] = enabled } }
-    }
-
     fun setHoneycombTopFade(value: Int) {
         _honeycombTopFade.value = value.coerceIn(0, 160)
         syncUiConfig()
@@ -574,7 +562,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _appReturnAnimationDuration.value = LauncherDefaults.appReturnAnimationDurationMs
 
         _honeycombCols.value = LauncherDefaults.honeycombCols
-        _honeycombFisheyeEnabled.value = true
         _honeycombTopFade.value = LauncherDefaults.honeycombFadeDp
         _honeycombBottomFade.value = LauncherDefaults.honeycombFadeDp
         _showNotification.value = true
@@ -597,7 +584,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefs[KEY_APP_OPEN_ANIM_DURATION] = LauncherDefaults.appOpenAnimationDurationMs
                 prefs[KEY_APP_RETURN_ANIM_DURATION] = LauncherDefaults.appReturnAnimationDurationMs
                 prefs[KEY_HONEYCOMB_COLS] = LauncherDefaults.honeycombCols
-                prefs[KEY_HONEYCOMB_FISHEYE] = true
                 prefs[KEY_HONEYCOMB_TOP_FADE] = LauncherDefaults.honeycombFadeDp
                 prefs[KEY_HONEYCOMB_BOTTOM_FADE] = LauncherDefaults.honeycombFadeDp
                 prefs[KEY_SHOW_NOTIFICATION] = true

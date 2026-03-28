@@ -91,7 +91,6 @@ data class IconConfig(
 data class LayoutConfig(
     val mode: LayoutMode = LayoutMode.Honeycomb,
     val honeycombCols: Int = LauncherDefaults.honeycombCols,
-    val honeycombFisheyeEnabled: Boolean = true,
     val honeycombTopFadeDp: Int = LauncherDefaults.honeycombFadeDp,
     val honeycombBottomFadeDp: Int = LauncherDefaults.honeycombFadeDp
 )

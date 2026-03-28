@@ -126,7 +126,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
     val listScrollOffset by vm.listScrollOffset.collectAsState()
     val honeycombScrollOffset by vm.honeycombScrollOffset.collectAsState()
     val honeycombCols by vm.honeycombCols.collectAsState()
-    val honeycombFisheyeEnabled by vm.honeycombFisheyeEnabled.collectAsState()
     val honeycombTopFade by vm.honeycombTopFade.collectAsState()
     val honeycombBottomFade by vm.honeycombBottomFade.collectAsState()
     val showNotification by vm.showNotification.collectAsState()
@@ -201,7 +200,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                         suppressHeavyEffects = reduceLegacyDrawerEffects,
                         narrowCols = honeycombCols,
                         iconScaleMultiplier = iconScaleMultiplier,
-                        fisheyeEnabled = honeycombFisheyeEnabled,
                         topFadeRangeDp = honeycombTopFade,
                         bottomFadeRangeDp = honeycombBottomFade,
                         blurRadiusDp = blurRadiusDp,
@@ -318,7 +316,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     splashDelay = splashDelay,
                     listIconSize = listIconSize,
                     honeycombCols = honeycombCols,
-                    honeycombFisheyeEnabled = honeycombFisheyeEnabled,
                     honeycombTopFade = honeycombTopFade,
                     honeycombBottomFade = honeycombBottomFade,
                     showNotification = showNotification,
@@ -338,7 +335,6 @@ fun LauncherScreen(vm: LauncherViewModel) {
                     onSplashDelayChange = { vm.setSplashDelay(it) },
                     onListIconSizeChange = { vm.setListIconSize(it) },
                     onHoneycombColsChange = { vm.setHoneycombCols(it) },
-                    onHoneycombFisheyeToggle = { vm.setHoneycombFisheyeEnabled(it) },
                     onHoneycombTopFadeChange = { vm.setHoneycombTopFade(it) },
                     onHoneycombBottomFadeChange = { vm.setHoneycombBottomFade(it) },
                     onShowNotificationChange = { vm.setShowNotification(it) },

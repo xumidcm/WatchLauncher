@@ -2,14 +2,20 @@ package com.example.wlauncher.ui.drawer
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,36 +26,67 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppBubble(
     icon: ImageBitmap,
     size: Dp = 54.dp,
-    pressed: Boolean = false,
-    scaleTargetWhenPressed: Float = 0.94f,
-    animationDurationMillis: Int = 180,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    forcePressed: Boolean = false,
+    forceScaleTarget: Float? = null,
+    pressScaleTarget: Float = 0.9f,
+    pressAnimationDelayMillis: Int = 0,
+    pressAnimationDurationMillis: Int = 180,
+    onPressedChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val activePressed = isPressed || forcePressed
+    val activeScaleTarget = when {
+        forcePressed -> forceScaleTarget ?: pressScaleTarget
+        isPressed -> pressScaleTarget
+        else -> 1f
+    }
     val pressedScale by animateFloatAsState(
-        targetValue = if (pressed) scaleTargetWhenPressed else 1f,
-        animationSpec = tween(durationMillis = animationDurationMillis),
+        targetValue = activeScaleTarget,
+        animationSpec = tween(
+            durationMillis = pressAnimationDurationMillis,
+            delayMillis = if (activePressed) pressAnimationDelayMillis else 0
+        ),
         label = "bubble_scale"
     )
     val pressedOverlayAlpha by animateFloatAsState(
-        targetValue = if (pressed) 0.14f else 0f,
-        animationSpec = tween(durationMillis = animationDurationMillis),
+        targetValue = if (activePressed) 0.16f else 0f,
+        animationSpec = tween(
+            durationMillis = pressAnimationDurationMillis,
+            delayMillis = if (activePressed) pressAnimationDelayMillis else 0
+        ),
         label = "bubble_overlay"
     )
+
+    LaunchedEffect(activePressed) {
+        onPressedChange(activePressed)
+    }
 
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
             .graphicsLayer {
+                shadowElevation = if (forcePressed) 18.dp.toPx() else 8.dp.toPx()
                 shape = CircleShape
                 clip = true
                 scaleX = pressedScale
                 scaleY = pressedScale
-            },
+            }
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = { onClick?.invoke() },
+                onLongClick = onLongClick
+            ),
         contentAlignment = Alignment.Center
     ) {
         Image(
