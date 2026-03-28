@@ -6,9 +6,8 @@ import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import kotlin.math.abs
 import kotlin.math.sign
 
-internal const val DRAWER_DRAG_ARM_MS = 500L
-internal const val DRAWER_MENU_TRIGGER_MS = 1000L
-internal const val DRAWER_MENU_TO_DRAG_MS = 1500L
+internal const val DRAWER_DRAG_ARM_MS = 300L
+internal const val DRAWER_MENU_TRIGGER_MS = 500L
 
 internal enum class DrawerGesturePhase {
     Idle,
@@ -110,6 +109,7 @@ internal suspend fun AwaitPointerEventScope.runDrawerLongPressSequence(
     onBeginDrag: (Offset) -> Unit,
     onDragDelta: (Offset, Offset) -> Unit,
     onFinishDrag: () -> Unit,
+    shouldPromoteMenuToDrag: (Offset) -> Boolean = { false },
     onTap: (Offset) -> Unit = {},
     onPressStateChange: (Boolean) -> Unit = {},
     onPhaseChange: (DrawerGesturePhase) -> Unit = {}
@@ -141,7 +141,7 @@ internal suspend fun AwaitPointerEventScope.runDrawerLongPressSequence(
                 onPhaseChange(DrawerGesturePhase.MenuOpen)
                 onShowMenu()
             }
-            if (menuShown && !dragStarted && elapsed >= DRAWER_MENU_TO_DRAG_MS) {
+            if (menuShown && !dragStarted && shouldPromoteMenuToDrag(lastPosition)) {
                 dragStarted = true
                 onPhaseChange(DrawerGesturePhase.Dragging)
                 onMenuToDrag(lastPosition)

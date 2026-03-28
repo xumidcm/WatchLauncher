@@ -1,14 +1,13 @@
 package com.example.wlauncher.ui.drawer
 
-import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +29,7 @@ import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.example.wlauncher.data.model.AppInfo
 import com.example.wlauncher.util.fisheyeScale
@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 private const val HONEYCOMB_PRESS_SCALE = 0.95f
@@ -75,7 +76,6 @@ fun HoneycombScreen(
     var settlePulseKey by remember { mutableStateOf<String?>(null) }
     var dragPreview by remember { mutableStateOf(DrawerPreviewOrderState(apps.map { it.componentKey })) }
     var dragOffset by remember { mutableStateOf(Offset.Zero) }
-    var settleTargetOffset by remember { mutableStateOf<Offset?>(null) }
     var dragPointer by remember { mutableStateOf<Offset?>(null) }
     var autoScrollVelocity by remember { mutableFloatStateOf(0f) }
 
@@ -148,7 +148,6 @@ fun HoneycombScreen(
             if (dragPreview.isDragging) return
             menuApp = null
             dragOffset = Offset.Zero
-            settleTargetOffset = null
             dragPointer = pointerPosition
             pressedAppKey = app.componentKey
             dragPreview = dragPreview.beginDrag(app.componentKey, index)
@@ -166,7 +165,6 @@ fun HoneycombScreen(
             val dragKey = dragPreview.draggingKey
             dragPreview = dragPreview.clearDrag()
             dragOffset = Offset.Zero
-            settleTargetOffset = null
             dragPointer = null
             autoScrollVelocity = 0f
             pressedAppKey = null
@@ -185,35 +183,9 @@ fun HoneycombScreen(
             if (!dragPreview.isDragging) return
             val fromIndex = dragPreview.dragFromIndex
             val toIndex = dragPreview.dragTargetIndex
-            val source = positions.getOrNull(fromIndex) ?: Offset.Zero
-            val target = positions.getOrNull(toIndex) ?: source
-            val targetOffset = target - source
-            if ((targetOffset - dragOffset).getDistance() <= 1f) {
-                if (fromIndex != toIndex) onReorder(fromIndex, toIndex)
-                clearDragState()
-            } else {
-                settleTargetOffset = targetOffset
-            }
+            if (fromIndex != toIndex) onReorder(fromIndex, toIndex)
+            clearDragState()
         }
-
-        val animatedDragOffset by animateOffsetAsState(
-            targetValue = settleTargetOffset ?: dragOffset,
-            animationSpec = if (settleTargetOffset != null) {
-                spring(dampingRatio = 0.86f, stiffness = 520f)
-            } else {
-                snap()
-            },
-            finishedListener = { finished ->
-                val target = settleTargetOffset ?: return@animateOffsetAsState
-                if ((finished - target).getDistance() <= 1f) {
-                    val fromIndex = dragPreview.dragFromIndex
-                    val toIndex = dragPreview.dragTargetIndex
-                    if (fromIndex != toIndex) onReorder(fromIndex, toIndex)
-                    clearDragState()
-                }
-            },
-            label = "honeycomb_drag_offset"
-        )
 
         LaunchedEffect(dragPreview.isDragging, autoScrollSpec) {
             if (!dragPreview.isDragging) {
@@ -342,6 +314,8 @@ fun HoneycombScreen(
                     cellSize = cellSize
                 )
                 val pressed = isDragged || pressedAppKey == appKey || menuApp?.componentKey == appKey
+                val topLeftX = screenCenterX + displayPos.x - iconSizePx / 2f + if (isDragged) dragOffset.x else pulseMotion.x
+                val topLeftY = screenCenterY + displayPos.y + scrollOffset.value - iconSizePx / 2f + if (isDragged) dragOffset.y else pulseMotion.y
 
                 key(appKey) {
                     AppBubble(
@@ -350,6 +324,12 @@ fun HoneycombScreen(
                         pressed = pressed,
                         scaleTargetWhenPressed = if (isDragged) HONEYCOMB_DRAG_SCALE else HONEYCOMB_PRESS_SCALE,
                         modifier = Modifier
+                            .offset {
+                                IntOffset(
+                                    x = topLeftX.roundToInt(),
+                                    y = topLeftY.roundToInt()
+                                )
+                            }
                             .pointerInput(appKey, dragPreview.draggingKey, menuApp, scrollOffset.value) {
                                 awaitPointerEventScope {
                                     runDrawerLongPressSequence(
@@ -363,15 +343,20 @@ fun HoneycombScreen(
                                         },
                                         onMenuToDrag = { pointerPosition ->
                                             menuApp = null
-                                            beginDrag(appIndex, pointerPosition)
+                                            beginDrag(appIndex, Offset(topLeftX + pointerPosition.x, topLeftY + pointerPosition.y))
                                         },
                                         onBeginDrag = { pointerPosition ->
-                                            beginDrag(appIndex, pointerPosition)
+                                            beginDrag(appIndex, Offset(topLeftX + pointerPosition.x, topLeftY + pointerPosition.y))
                                         },
                                         onDragDelta = { delta, pointerPosition ->
-                                            updateDrag(delta, pointerPosition)
+                                            updateDrag(delta, Offset(topLeftX + pointerPosition.x, topLeftY + pointerPosition.y))
                                         },
                                         onFinishDrag = { finishDrag() },
+                                        shouldPromoteMenuToDrag = { pointerPosition ->
+                                            val rootPointer = Offset(topLeftX + pointerPosition.x, topLeftY + pointerPosition.y)
+                                            val center = Offset(topLeftX + iconSizePx / 2f, topLeftY + iconSizePx / 2f)
+                                            (rootPointer - center).getDistance() > iconSizePx * 0.52f
+                                        },
                                         onTap = {
                                             val currentScroll = scrollOffset.value
                                             val currentPos = positions.getOrNull(slotIndex) ?: Offset.Zero
@@ -388,18 +373,7 @@ fun HoneycombScreen(
                                 }
                             }
                             .graphicsLayer {
-                                translationX = screenCenterX + displayPos.x - iconSizePx / 2f
-                                translationY = screenCenterY + displayPos.y + scrollOffset.value - iconSizePx / 2f
-                                if (isDragged) {
-                                    translationX += animatedDragOffset.x
-                                    translationY += animatedDragOffset.y
-                                    shadowElevation = 20.dp.toPx()
-                                } else {
-                                    translationX += pulseMotion.x
-                                    translationY += pulseMotion.y
-                                    shadowElevation = 0f
-                                }
-
+                                shadowElevation = if (isDragged) 20.dp.toPx() else 0f
                                 val dx = (screenCenterX + slotPos.x) - screenCenterX
                                 val dy = (screenCenterY + slotPos.y + scrollOffset.value) - screenCenterY
                                 val distance = sqrt(dx * dx + dy * dy)

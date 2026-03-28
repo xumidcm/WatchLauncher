@@ -1,9 +1,6 @@
 package com.example.wlauncher.ui.drawer
 
-import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -107,7 +104,6 @@ fun ListDrawerScreen(
     var settlePulseKey by remember { mutableStateOf<String?>(null) }
     var dragPreview by remember { mutableStateOf(DrawerPreviewOrderState(apps.map { it.componentKey })) }
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    var settleTargetOffsetY by remember { mutableStateOf<Float?>(null) }
     var dragPointer by remember { mutableStateOf<Offset?>(null) }
     var autoScrollVelocity by remember { mutableFloatStateOf(0f) }
 
@@ -133,12 +129,12 @@ fun ListDrawerScreen(
                         object : NestedScrollConnection {
                             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                                 if (source != NestedScrollSource.Drag || dragPreview.isDragging || menuApp != null) return Offset.Zero
-                                return consumeListOverscroll(available.y, listState, overscroll = null, scope = scope)
+                                return consumeListOverscroll(available.y, listState)
                             }
 
                             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
                                 if (source != NestedScrollSource.Drag || dragPreview.isDragging || menuApp != null) return Offset.Zero
-                                return consumeListOverscroll(available.y, listState, overscroll = null, scope = scope)
+                                return consumeListOverscroll(available.y, listState)
                             }
 
                             override suspend fun onPreFling(available: Velocity): Velocity {
@@ -167,6 +163,7 @@ fun ListDrawerScreen(
             val topPadding = 24.dp
             val bottomPadding = 56.dp
             val touchSlop = viewConfiguration.touchSlop
+            val itemTops = remember { mutableMapOf<String, Float>() }
             val itemCenters = remember { mutableMapOf<String, Float>() }
             val itemHeights = remember { mutableMapOf<String, Float>() }
             val autoScrollSpec = remember(screenHeightPx, scaledIconSize) {
@@ -184,7 +181,6 @@ fun ListDrawerScreen(
                 if (dragPreview.isDragging) return
                 menuApp = null
                 dragOffsetY = 0f
-                settleTargetOffsetY = null
                 dragPointer = pointerPosition
                 pressedAppKey = app.componentKey
                 dragPreview = dragPreview.beginDrag(app.componentKey, index)
@@ -213,7 +209,6 @@ fun ListDrawerScreen(
                 val dragKey = dragPreview.draggingKey
                 dragPreview = dragPreview.clearDrag()
                 dragOffsetY = 0f
-                settleTargetOffsetY = null
                 dragPointer = null
                 autoScrollVelocity = 0f
                 pressedAppKey = null
@@ -230,39 +225,11 @@ fun ListDrawerScreen(
 
             fun finishDrag() {
                 if (!dragPreview.isDragging) return
-                val draggingKey = dragPreview.draggingKey ?: return
-                val sourceCenter = itemCenters[draggingKey] ?: dragPointer?.y ?: 0f
-                val targetKey = dragPreview.settledKeys.getOrNull(dragPreview.dragTargetIndex)
-                val targetCenter = targetKey?.let { itemCenters[it] } ?: sourceCenter
-                val targetOffset = targetCenter - sourceCenter
-                if (abs(targetOffset - dragOffsetY) <= 1f) {
-                    if (dragPreview.dragFromIndex != dragPreview.dragTargetIndex) {
-                        onReorder(dragPreview.dragFromIndex, dragPreview.dragTargetIndex)
-                    }
-                    clearDragState()
-                } else {
-                    settleTargetOffsetY = targetOffset
+                if (dragPreview.dragFromIndex != dragPreview.dragTargetIndex) {
+                    onReorder(dragPreview.dragFromIndex, dragPreview.dragTargetIndex)
                 }
+                clearDragState()
             }
-
-            val animatedDragOffsetY by animateFloatAsState(
-                targetValue = settleTargetOffsetY ?: dragOffsetY,
-                animationSpec = if (settleTargetOffsetY != null) {
-                    spring(dampingRatio = 0.86f, stiffness = 520f)
-                } else {
-                    snap()
-                },
-                finishedListener = { finished ->
-                    val target = settleTargetOffsetY ?: return@animateFloatAsState
-                    if (abs(finished - target) <= 1f) {
-                        if (dragPreview.dragFromIndex != dragPreview.dragTargetIndex) {
-                            onReorder(dragPreview.dragFromIndex, dragPreview.dragTargetIndex)
-                        }
-                        clearDragState()
-                    }
-                },
-                label = "list_drag_offset"
-            )
 
             LaunchedEffect(Unit) {
                 focusRequester.requestFocus()
@@ -331,7 +298,7 @@ fun ListDrawerScreen(
                         itemHeights = itemHeights
                     )
                     val rowTranslationY by animateFloatAsState(
-                        targetValue = if (isDragged) animatedDragOffsetY else displacedTarget + pulseMotion.shiftY,
+                        targetValue = if (isDragged) dragOffsetY else displacedTarget + pulseMotion.shiftY,
                         animationSpec = spring(dampingRatio = 0.84f, stiffness = 460f),
                         label = "list_row_translation"
                     )
@@ -356,6 +323,7 @@ fun ListDrawerScreen(
                                 .fillMaxWidth()
                                 .onGloballyPositioned { coords ->
                                     val posY = coords.positionInRoot().y
+                                    itemTops[app.componentKey] = posY
                                     itemCenters[app.componentKey] = posY + coords.size.height / 2f
                                     itemHeights[app.componentKey] = coords.size.height.toFloat()
                                 }
@@ -372,15 +340,23 @@ fun ListDrawerScreen(
                                             },
                                             onMenuToDrag = { pointerPosition ->
                                                 menuApp = null
-                                                beginDrag(index, pointerPosition)
+                                                val rootPointer = Offset(pointerPosition.x, (itemTops[app.componentKey] ?: 0f) + pointerPosition.y)
+                                                beginDrag(index, rootPointer)
                                             },
                                             onBeginDrag = { pointerPosition ->
-                                                beginDrag(index, pointerPosition)
+                                                val rootPointer = Offset(pointerPosition.x, (itemTops[app.componentKey] ?: 0f) + pointerPosition.y)
+                                                beginDrag(index, rootPointer)
                                             },
                                             onDragDelta = { delta, pointerPosition ->
-                                                updateDrag(delta, pointerPosition)
+                                                val rootPointer = Offset(pointerPosition.x, (itemTops[app.componentKey] ?: 0f) + pointerPosition.y)
+                                                updateDrag(delta, rootPointer)
                                             },
                                             onFinishDrag = { finishDrag() },
+                                            shouldPromoteMenuToDrag = { pointerPosition ->
+                                                val rootY = (itemTops[app.componentKey] ?: 0f) + pointerPosition.y
+                                                val centerY = itemCenters[app.componentKey] ?: rootY
+                                                abs(rootY - centerY) > ((itemHeights[app.componentKey] ?: rowHeight) * 0.52f)
+                                            },
                                             onTap = {
                                                 val centerY = itemCenters[app.componentKey] ?: screenCenterY
                                                 onAppClick(app, Offset(0.15f, centerY / screenHeightPx))
@@ -513,22 +489,13 @@ private fun findNearestListIndex(
 
 private fun consumeListOverscroll(
     availableY: Float,
-    listState: androidx.compose.foundation.lazy.LazyListState,
-    overscroll: Animatable<Float, AnimationVector1D>?,
-    scope: kotlinx.coroutines.CoroutineScope
+    listState: androidx.compose.foundation.lazy.LazyListState
 ): Offset {
-    if (overscroll == null) return Offset.Zero
     val atTop = !listState.canScrollBackward
     val atBottom = !listState.canScrollForward
-    val current = overscroll.value
-    val next = when {
-        availableY > 0f && atTop -> (current + availableY * 0.35f).coerceAtMost(180f)
-        availableY < 0f && atBottom -> (current + availableY * 0.35f).coerceAtLeast(-180f)
-        current > 0f && availableY < 0f -> (current + availableY).coerceAtLeast(0f)
-        current < 0f && availableY > 0f -> (current + availableY).coerceAtMost(0f)
-        else -> current
+    return when {
+        availableY > 0f && atTop -> Offset(0f, availableY * 0.12f)
+        availableY < 0f && atBottom -> Offset(0f, availableY * 0.12f)
+        else -> Offset.Zero
     }
-    if (next == current) return Offset.Zero
-    scope.launch { overscroll.snapTo(next) }
-    return Offset(0f, availableY)
 }
